@@ -20,8 +20,8 @@ contract SecondaryMarketTest is Test {
     address buyer = address(0x3);
     address platformOwner = address(0x99);
 
-    uint256 constant INITIAL_SUPPLY = 1000 ether;
-    uint256 constant PRIMARY_PRICE = 0.001 ether;
+    uint256 constant INITIAL_SUPPLY = 1000; // 1000 base units (no decimals for simplicity)
+    uint256 constant PRIMARY_PRICE = 0.001 ether; // price per 1 base unit
 
     uint256 poolId;
     address ftAddress;
@@ -68,21 +68,24 @@ contract SecondaryMarketTest is Test {
         vm.stopPrank();
 
         // Seller buys tokens from primary market
-        uint256 buyValue = (200 ether * PRIMARY_PRICE) / 1 ether; // Calculate correctly
+        // buyFractions expects: cost = salePricePerToken * amount (amount in base units, not ether)
+        // PRIMARY_PRICE = 0.001 ether per token, amount = 200 tokens
+        uint256 buyAmount = 200; // 200 base units
+        uint256 buyValue = PRIMARY_PRICE * buyAmount;
         vm.prank(seller);
-        fractionalizer.buyFractions{value: buyValue}(poolId, 200 ether);
+        fractionalizer.buyFractions{value: buyValue}(poolId, buyAmount);
     }
 
     function testCreateSellOrder() public {
         FractionalToken ft = FractionalToken(ftAddress);
 
         vm.startPrank(seller);
-        ft.approve(address(market), 100 ether);
+        ft.approve(address(market), 100);
 
         uint256 orderId = market.createSellOrder(
             poolId,
             ftAddress,
-            100 ether,
+            100,
             0.002 ether // 2x primary price
         );
         vm.stopPrank();
@@ -96,13 +99,13 @@ contract SecondaryMarketTest is Test {
         assertEq(pid, poolId, "Pool ID mismatch");
         assertEq(ft_addr, ftAddress, "FT address mismatch");
         assertEq(seller_addr, seller, "Seller mismatch");
-        assertEq(amount, 100 ether, "Amount mismatch");
+        assertEq(amount, 100, "Amount mismatch");
         assertEq(price, 0.002 ether, "Price mismatch");
         assertTrue(active, "Order should be active");
 
         // Verify tokens are escrowed
-        assertEq(ft.balanceOf(address(market)), 100 ether, "Tokens should be in escrow");
-        assertEq(ft.balanceOf(seller), 100 ether, "Seller should have 100 tokens left");
+        assertEq(ft.balanceOf(address(market)), 100, "Tokens should be in escrow");
+        assertEq(ft.balanceOf(seller), 100, "Seller should have 100 tokens left");
     }
 
     function testBuyFromOrder() public {
@@ -110,12 +113,12 @@ contract SecondaryMarketTest is Test {
 
         // Seller creates order
         vm.startPrank(seller);
-        ft.approve(address(market), 100 ether);
-        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100 ether, 0.002 ether);
+        ft.approve(address(market), 100);
+        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100, 0.002 ether);
         vm.stopPrank();
 
         // Buyer purchases full order
-        uint256 totalCost = 100 ether * 0.002 ether; // 0.2 ETH
+        uint256 totalCost = 100 * 0.002 ether; // 0.2 ETH
         uint256 platformFee = (totalCost * 250) / 10000; // 2.5%
         uint256 sellerProceeds = totalCost - platformFee;
 
@@ -123,10 +126,10 @@ contract SecondaryMarketTest is Test {
         uint256 buyerFTBalanceBefore = ft.balanceOf(buyer);
 
         vm.prank(buyer);
-        market.buyFromOrder{value: totalCost}(orderId, 100 ether);
+        market.buyFromOrder{value: totalCost}(orderId, 100);
 
         // Verify balances
-        assertEq(ft.balanceOf(buyer), buyerFTBalanceBefore + 100 ether, "Buyer should receive tokens");
+        assertEq(ft.balanceOf(buyer), buyerFTBalanceBefore + 100, "Buyer should receive tokens");
         assertEq(seller.balance, sellerBalanceBefore + sellerProceeds, "Seller should receive payment");
         assertEq(platformOwner.balance, platformFee, "Platform should receive fee");
 
@@ -140,12 +143,12 @@ contract SecondaryMarketTest is Test {
 
         // Seller creates order
         vm.startPrank(seller);
-        ft.approve(address(market), 100 ether);
-        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100 ether, 0.002 ether);
+        ft.approve(address(market), 100);
+        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100, 0.002 ether);
         vm.stopPrank();
 
         // Buyer purchases 30 tokens (partial)
-        uint256 buyAmount = 30 ether;
+        uint256 buyAmount = 30;
         uint256 totalCost = buyAmount * 0.002 ether;
 
         vm.prank(buyer);
@@ -157,7 +160,7 @@ contract SecondaryMarketTest is Test {
         // Verify order is still active with reduced amount
         (,,,uint256 remainingAmount, , bool active, ) = market.getOrderDetails(orderId);
         assertTrue(active, "Order should still be active");
-        assertEq(remainingAmount, 70 ether, "Order should have 70 tokens left");
+        assertEq(remainingAmount, 70, "Order should have 70 tokens left");
     }
 
     function testCancelOrder() public {
@@ -165,8 +168,8 @@ contract SecondaryMarketTest is Test {
 
         // Seller creates order
         vm.startPrank(seller);
-        ft.approve(address(market), 100 ether);
-        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100 ether, 0.002 ether);
+        ft.approve(address(market), 100);
+        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100, 0.002 ether);
 
         // Cancel order
         market.cancelOrder(orderId);
@@ -177,7 +180,7 @@ contract SecondaryMarketTest is Test {
         assertFalse(active, "Order should be inactive");
 
         // Verify tokens returned to seller
-        assertEq(ft.balanceOf(seller), 200 ether, "Seller should have all tokens back");
+        assertEq(ft.balanceOf(seller), 200, "Seller should have all tokens back");
         assertEq(ft.balanceOf(address(market)), 0, "Market should have no tokens");
     }
 
@@ -185,12 +188,12 @@ contract SecondaryMarketTest is Test {
         FractionalToken ft = FractionalToken(ftAddress);
 
         vm.startPrank(seller);
-        ft.approve(address(market), 100 ether);
-        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100 ether, 0.002 ether);
+        ft.approve(address(market), 100);
+        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100, 0.002 ether);
 
         // Try to buy own order
         vm.expectRevert("cannot buy own order");
-        market.buyFromOrder{value: 0.2 ether}(orderId, 100 ether);
+        market.buyFromOrder{value: 0.2 ether}(orderId, 100);
         vm.stopPrank();
     }
 
@@ -198,8 +201,8 @@ contract SecondaryMarketTest is Test {
         FractionalToken ft = FractionalToken(ftAddress);
 
         vm.startPrank(seller);
-        ft.approve(address(market), 100 ether);
-        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100 ether, 0.002 ether);
+        ft.approve(address(market), 100);
+        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100, 0.002 ether);
         vm.stopPrank();
 
         // Buyer tries to cancel seller's order
@@ -213,10 +216,10 @@ contract SecondaryMarketTest is Test {
 
         // Create multiple orders
         vm.startPrank(seller);
-        ft.approve(address(market), 200 ether);
+        ft.approve(address(market), 200);
 
-        uint256 orderId1 = market.createSellOrder(poolId, ftAddress, 50 ether, 0.002 ether);
-        uint256 orderId2 = market.createSellOrder(poolId, ftAddress, 50 ether, 0.003 ether);
+        uint256 orderId1 = market.createSellOrder(poolId, ftAddress, 50, 0.002 ether);
+        uint256 orderId2 = market.createSellOrder(poolId, ftAddress, 50, 0.003 ether);
         vm.stopPrank();
 
         // Get pool orders
@@ -242,21 +245,21 @@ contract SecondaryMarketTest is Test {
 
         // Seller creates order
         vm.startPrank(seller);
-        ft.approve(address(market), 100 ether);
-        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100 ether, 0.002 ether);
+        ft.approve(address(market), 100);
+        uint256 orderId = market.createSellOrder(poolId, ftAddress, 100, 0.002 ether);
         vm.stopPrank();
 
         // Buyer 1 buys 40 tokens
         vm.prank(buyer);
-        market.buyFromOrder{value: 40 ether * 0.002 ether}(orderId, 40 ether);
+        market.buyFromOrder{value: 40 * 0.002 ether}(orderId, 40);
 
         // Buyer 2 buys 60 tokens
         vm.prank(buyer2);
-        market.buyFromOrder{value: 60 ether * 0.002 ether}(orderId, 60 ether);
+        market.buyFromOrder{value: 60 * 0.002 ether}(orderId, 60);
 
         // Verify distributions
-        assertEq(ft.balanceOf(buyer), 40 ether, "Buyer1 should have 40 tokens");
-        assertEq(ft.balanceOf(buyer2), 60 ether, "Buyer2 should have 60 tokens");
+        assertEq(ft.balanceOf(buyer), 40, "Buyer1 should have 40 tokens");
+        assertEq(ft.balanceOf(buyer2), 60, "Buyer2 should have 60 tokens");
 
         // Order should be closed
         (,,,, , bool active, ) = market.getOrderDetails(orderId);

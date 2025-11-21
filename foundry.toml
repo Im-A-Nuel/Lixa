@@ -10,5 +10,7 @@ remappings = [
   "forge-std/=lib/forge-std/src/"
 ]
 
+fs_permissions = [{ access = "read-write", path = "./deployments" }]
+
 [fmt]
 line_length = 100

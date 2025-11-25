@@ -27,6 +27,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -80,7 +81,7 @@ contract AssetNFT is ERC721URIStorage, Ownable {
 }
 
 /* ---------------- Fractional Token ---------------- */
-contract FractionalToken is ERC20, ERC20Burnable {
+contract FractionalToken is ERC20, ERC20Burnable, ERC20Permit {
     address public fractionalizer;
     uint256 public originAssetId; // for reference (e.g. AssetNFT tokenId)
     uint256 public poolId; // pool ID for hook callback
@@ -97,7 +98,7 @@ contract FractionalToken is ERC20, ERC20Burnable {
         address to_,
         address fractionalizer_,
         uint256 assetId_
-    ) ERC20(name_, symbol_) {
+    ) ERC20(name_, symbol_) ERC20Permit(name_) {
         fractionalizer = fractionalizer_;
         originAssetId = assetId_;
         _mint(to_, totalSupply_);
@@ -337,7 +338,9 @@ contract Fractionalizer is Ownable, ReentrancyGuard, IFracHook {
         require(amount > 0 && p.sold + amount <= p.amountForSale, "not enough for sale");
         require(p.salePricePerToken > 0, "sale price not set");
 
-        uint256 cost = p.salePricePerToken * amount;
+        // pricePerToken is expressed per whole token (18 decimals). amount is also 18 decimals.
+        // Adjust by 1e18 to get cost in wei.
+        uint256 cost = (p.salePricePerToken * amount) / 1e18;
         require(msg.value == cost, "incorrect payment");
 
         FractionalToken ft = FractionalToken(p.ftAddress);

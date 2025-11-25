@@ -20,6 +20,15 @@ export default function Home() {
               <Link href="/marketplace" className="text-gray-400 hover:text-white transition">
                 Marketplace
               </Link>
+              <Link href="/pools" className="text-gray-400 hover:text-white transition">
+                Pools
+              </Link>
+              <Link href="/fractionalize" className="text-gray-400 hover:text-white transition">
+                Fractionalize
+              </Link>
+              <Link href="/licenses" className="text-gray-400 hover:text-white transition">
+                Licenses
+              </Link>
               <Link href="/create" className="text-gray-400 hover:text-white transition">
                 Create
               </Link>

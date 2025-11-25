@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useEffect, useRef } from "react";
 
 export default function Header() {
   const pathname = usePathname();
+  const headerRef = useRef<HTMLDivElement | null>(null);
 
   const nav = [
     { href: "/marketplace", label: "Marketplace" },
@@ -13,22 +15,63 @@ export default function Header() {
     { href: "/portfolio", label: "Portfolio" },
   ];
 
+  // measure header height and set CSS var so layout can use it
+  useEffect(() => {
+    if (!headerRef.current) return;
+
+    const el = headerRef.current;
+
+    const setVar = () => {
+      const rect = el.getBoundingClientRect();
+      // add top offset (top:24px from top-6) so reserved space = offset + header height
+      const topOffset = 24; // px - matches top-6
+      const total = Math.ceil(rect.height + topOffset);
+      document.documentElement.style.setProperty(
+        "--header-height",
+        `${total}px`
+      );
+    };
+
+    // initial
+    setVar();
+
+    // use ResizeObserver so changes to header content update var
+    const ro = new ResizeObserver(() => setVar());
+    ro.observe(el);
+
+    // also update on window resize (for fonts / layout)
+    window.addEventListener("resize", setVar);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", setVar);
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-x-0 top-6 flex justify-center pointer-events-none z-50">
-      <div className="pointer-events-auto w-full max-w-5xl px-4">
-        <div className="glass-header relative rounded-2xl border border-white/10 shadow-2xl backdrop-blur-xl bg-white/5">
-          <div className="flex items-center justify-between gap-6 px-6 py-3">
-            {/* Left : Logo + Title */}
+    <div
+      className="fixed inset-x-0 top-6 flex justify-center pointer-events-none z-50"
+      aria-hidden={false}
+    >
+      {/* use same max-w as content so width matches */}
+      <div
+        className="pointer-events-auto w-full max-w-7xl px-6"
+        ref={headerRef}
+      >
+        <div className="glass-header relative rounded-2xl border border-white/10 shadow-2xl bg-white/5">
+          {/* header inner: auto height (no fixed h-14) so it can grow if needed */}
+          <div className="flex items-center justify-between gap-6 px-4 py-3">
+            {/* Left: logo + title */}
             <div className="flex items-center gap-4">
-              <img
-                src="/mnt/data/8835ddcd-0d09-44ca-b26b-63b91c15869f.png"
-                alt="logo"
-                className="w-9 h-9 object-cover rounded-md"
-              />
-              <h1 className="text-white font-semibold text-lg">Lixa</h1>
+              <Link
+                href="/"
+                className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent"
+              >
+                Lixa
+              </Link>
             </div>
 
-            {/* Center : Navigation */}
+            {/* Center: nav */}
             <nav className="hidden sm:flex items-center gap-3 relative">
               {nav.map((n) => {
                 const active = pathname === n.href;
@@ -36,18 +79,20 @@ export default function Header() {
                   <Link
                     key={n.href}
                     href={n.href}
-                    className="relative px-4 py-2 rounded-lg font-medium transition text-sm"
+                    className={`relative px-4 py-2 rounded-lg font-medium transition text-sm flex items-center justify-center ${
+                      active ? "nav-active" : "bg-transparent text-gray-300"
+                    }`}
                   >
+                    {/* nav background pill (handled in CSS) */}
                     <span
+                      aria-hidden
                       className={`absolute inset-0 -z-10 rounded-lg transition-all duration-300 ${
-                        active
-                          ? "opacity-100 scale-100 nav-pill"
-                          : "opacity-0 scale-90"
+                        active ? "nav-pill-active" : "nav-pill-inactive"
                       }`}
                     />
                     <span
                       className={
-                        active ? "text-white" : "text-gray-300 hover:text-white"
+                        active ? "nav-text-active" : "nav-text-inactive"
                       }
                     >
                       {n.label}
@@ -57,9 +102,12 @@ export default function Header() {
               })}
             </nav>
 
-            {/* Right : Wallet Button */}
-            <div>
-              <ConnectButton chainStatus="icon" showBalance={false} />
+            {/* Right: wallet */}
+            <div className="right">
+              {/* wrapper untuk styling tombol RainbowKit */}
+              <div className="wallet-wrap" aria-hidden={false}>
+                <ConnectButton chainStatus="icon" showBalance={false} />
+              </div>
             </div>
           </div>
         </div>

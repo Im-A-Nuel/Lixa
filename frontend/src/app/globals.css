@@ -24,3 +24,19 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+.glass-header {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+/* Ungu pill highlight */
+.nav-pill {
+  background: linear-gradient(
+    90deg,
+    rgba(147, 51, 234, 0.35),
+    rgba(168, 85, 247, 0.25)
+  );
+  box-shadow: 0 4px 20px rgba(147, 51, 234, 0.25);
+}

@@ -9,13 +9,15 @@ import {
   useWaitForTransactionReceipt,
   usePublicClient,
 } from "wagmi";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { parseEther, parseUnits, formatEther, formatUnits } from "viem";
 import { getContractAddress } from "@/lib/contracts/addresses";
 import AssetRegistryABI from "@/lib/contracts/AssetRegistry.json";
 import FractionalizerABI from "@/lib/contracts/Fractionalizer.json";
 import SecondaryMarketABI from "@/lib/contracts/SecondaryMarket.json";
+import { ipfsToHttp, ipfsHttpGateways } from "@/lib/ipfs";
+import { AssetMedia } from "@/components/AssetMedia";
 
 const ERC20_ABI = [
   {
@@ -94,6 +96,59 @@ export default function MarketplacePage() {
       nftContract: string;
     }[];
   }, [assetsData]);
+
+  const [metaMap, setMetaMap] = useState<
+    Record<number, { name?: string; description?: string; image?: string; mimeType?: string; filename?: string }>
+  >({});
+
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const missing = assets.filter((a) => !metaMap[a.id] && a.metadataURI);
+    if (missing.length === 0) return;
+
+    missing.forEach(async (a) => {
+      const gateways = ipfsHttpGateways(a.metadataURI);
+      let fetched = false;
+
+      for (const url of gateways) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`status ${res.status}`);
+          const json = await res.json();
+          setMetaMap((prev) => ({
+            ...prev,
+            [a.id]: {
+              name: json?.name,
+              description: json?.description,
+              image: json?.image,
+              mimeType: json?.properties?.mimeType ?? json?.mimeType,
+              filename: json?.properties?.filename ?? json?.filename,
+            },
+          }));
+          fetched = true;
+          break;
+        } catch (err) {
+          console.error("metadata fetch failed", { uri: a.metadataURI, url }, err);
+        }
+      }
+
+      if (!fetched) {
+        // Keep a placeholder so we don't retry endlessly
+        setMetaMap((prev) => ({
+          ...prev,
+          [a.id]: {
+            name: `Asset #${a.id}`,
+            description: "Metadata unavailable",
+          },
+        }));
+      }
+    });
+  }, [assets, metaMap]);
+
+  const selectedAsset = selectedId ? assets.find((a) => a.id === selectedId) : undefined;
+  const selectedMeta = selectedAsset ? metaMap[selectedAsset.id] : undefined;
+  const selectedImage = selectedMeta?.image;
 
   // Pools
   const { data: totalPools } = useReadContract({
@@ -368,30 +423,127 @@ export default function MarketplacePage() {
           </div>
         ) : (
           <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {assets.map((asset) => (
-              <div
-                key={asset.id}
-                className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition"
-              >
-                <div className="aspect-square bg-gray-800 flex items-center justify-center">
-                  <svg className="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+            {assets.map((asset) => {
+              const meta = metaMap[asset.id];
+              const imgSrc = meta?.image;
+              return (
+                <div
+                  key={asset.id}
+                  className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition cursor-pointer"
+                  onClick={() => setSelectedId(asset.id)}
+                >
+                  <div className="aspect-square bg-gray-800 flex items-center justify-center">
+                    {imgSrc ? (
+                      <AssetMedia
+                        src={imgSrc}
+                        alt={meta?.name || `Asset ${asset.id}`}
+                        mimeType={meta?.mimeType}
+                        filename={meta?.filename}
+                        interactive={false}
+                      />
+                    ) : (
+                      <svg className="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="p-4 space-y-2">
+                    <h3 className="font-semibold">{meta?.name || `Asset #${asset.id}`}</h3>
+                    <p className="text-sm text-gray-400">
+                      {meta?.description || "No description"}
+                    </p>
+                    <p className="text-sm text-gray-400">Royalty: {(asset.royaltyBPS / 100).toFixed(2)}%</p>
+                    <p className="text-xs text-gray-500 break-all">Creator: {asset.creator}</p>
+                    <div className="flex gap-2 flex-wrap">
+                      <span className="px-2 py-1 bg-purple-600/20 text-purple-400 text-xs rounded">Registered</span>
+                      <span className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded">
+                        Token #{asset.tokenId.toString()}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-4 space-y-2">
-                  <h3 className="font-semibold">Asset #{asset.id}</h3>
-                  <p className="text-sm text-gray-400 break-all">URI: {asset.metadataURI}</p>
-                  <p className="text-sm text-gray-400">Royalty: {(asset.royaltyBPS / 100).toFixed(2)}%</p>
-                  <p className="text-xs text-gray-500 break-all">Creator: {asset.creator}</p>
-                  <div className="flex gap-2">
-                    <span className="px-2 py-1 bg-purple-600/20 text-purple-400 text-xs rounded">Registered</span>
-                    <span className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded">
-                      Token #{asset.tokenId.toString()}
-                    </span>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Lightbox for asset preview */}
+        {selectedAsset && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl">
+              <div className="flex justify-between items-center px-6 py-4 border-b border-gray-800">
+                <div>
+                  <h3 className="text-xl font-semibold">
+                    {selectedMeta?.name || `Asset #${selectedAsset.id}`}
+                  </h3>
+                  <p className="text-sm text-gray-400">Token #{selectedAsset.tokenId.toString()}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedId(null)}
+                  className="text-gray-400 hover:text-white transition"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="grid md:grid-cols-2 gap-0">
+                <div className="bg-gray-950 aspect-square md:h-full flex items-center justify-center">
+                  {selectedImage ? (
+                    <AssetMedia
+                      src={selectedImage}
+                      alt={selectedMeta?.name || `Asset ${selectedAsset.id}`}
+                      mimeType={selectedMeta?.mimeType}
+                      filename={selectedMeta?.filename}
+                      className="w-full h-full object-contain bg-gray-950"
+                      interactive={true}
+                    />
+                  ) : (
+                    <div className="text-gray-500">No preview</div>
+                  )}
+                </div>
+                <div className="p-6 space-y-3 overflow-auto">
+                  <p className="text-sm text-gray-300 whitespace-pre-line">
+                    {selectedMeta?.description || "No description"}
+                  </p>
+                  <div className="text-sm text-gray-400 space-y-1">
+                    <p>Creator: {selectedAsset.creator}</p>
+                    <p>Metadata: {selectedAsset.metadataURI}</p>
+                    {selectedMeta?.filename && <p>File: {selectedMeta.filename}</p>}
+                    {selectedMeta?.mimeType && <p>Mime: {selectedMeta.mimeType}</p>}
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {selectedMeta?.image &&
+                      ipfsHttpGateways(selectedMeta.image).map((url) => (
+                        <a
+                          key={url}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1 bg-gray-800 text-gray-100 rounded-lg text-sm hover:bg-gray-700 transition"
+                        >
+                          Open media
+                        </a>
+                      ))}
+                    {selectedAsset.metadataURI &&
+                      ipfsHttpGateways(selectedAsset.metadataURI).map((url) => (
+                        <a
+                          key={url}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1 bg-gray-800 text-gray-100 rounded-lg text-sm hover:bg-gray-700 transition"
+                        >
+                          Open metadata
+                        </a>
+                      ))}
                   </div>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
         )}
 

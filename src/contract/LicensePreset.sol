@@ -12,24 +12,24 @@ pragma solidity ^0.8.24;
 library LicensePreset {
     // Preset license types for game assets
     enum PresetType {
-        CUSTOM,                  // Custom terms (backwards compatibility)
-        IN_GAME_COMMERCIAL_V1,   // Commercial game usage
-        TRAILER_MARKETING_V1,    // Marketing/promotional materials only
-        EDU_INDIE_V1            // Educational/indie with revenue cap
+        CUSTOM, // Custom terms (backwards compatibility)
+        IN_GAME_COMMERCIAL_V1, // Commercial game usage
+        TRAILER_MARKETING_V1, // Marketing/promotional materials only
+        EDU_INDIE_V1 // Educational/indie with revenue cap
     }
 
     // License terms metadata
     struct Terms {
-        string name;             // Human-readable name
-        string description;      // Brief description
-        bool commercialUse;      // Allow commercial use
-        bool inGameUse;          // Allow in-game usage
-        bool marketingUse;       // Allow in marketing materials
+        string name; // Human-readable name
+        string description; // Brief description
+        bool commercialUse; // Allow commercial use
+        bool inGameUse; // Allow in-game usage
+        bool marketingUse; // Allow in marketing materials
         bool modificationAllowed; // Can modify the asset
-        bool resaleAllowed;      // Can resell raw asset
+        bool resaleAllowed; // Can resell raw asset
         bool attributionRequired; // Must credit creator
-        bool transferable;       // License can be transferred
-        uint256 revenueCap;      // Revenue limit (0 = unlimited, in wei for simplicity)
+        bool transferable; // License can be transferred
+        uint256 revenueCap; // Revenue limit (0 = unlimited, in wei for simplicity)
         string additionalTermsURI; // IPFS link to full legal terms
     }
 
@@ -45,12 +45,12 @@ library LicensePreset {
                 description: "Full commercial usage rights for game integration",
                 commercialUse: true,
                 inGameUse: true,
-                marketingUse: true,  // Can also use in marketing
+                marketingUse: true, // Can also use in marketing
                 modificationAllowed: true,
                 resaleAllowed: false, // Cannot resell raw asset
                 attributionRequired: true,
-                transferable: false,  // License bound to buyer
-                revenueCap: 0,       // No revenue limit
+                transferable: false, // License bound to buyer
+                revenueCap: 0, // No revenue limit
                 additionalTermsURI: "ipfs://QmCommercialTermsV1" // Placeholder
             });
         } else if (preset == PresetType.TRAILER_MARKETING_V1) {
@@ -58,7 +58,7 @@ library LicensePreset {
                 name: "Trailer/Marketing License v1",
                 description: "For promotional materials only, not in-game usage",
                 commercialUse: true,
-                inGameUse: false,    // NOT allowed in actual game
+                inGameUse: false, // NOT allowed in actual game
                 marketingUse: true,
                 modificationAllowed: true,
                 resaleAllowed: false,
@@ -71,13 +71,13 @@ library LicensePreset {
             return Terms({
                 name: "Educational/Indie License v1",
                 description: "Discounted license for students and indie developers with revenue cap",
-                commercialUse: true,  // Can sell game, but with revenue cap
+                commercialUse: true, // Can sell game, but with revenue cap
                 inGameUse: true,
                 marketingUse: true,
                 modificationAllowed: true,
                 resaleAllowed: false,
                 attributionRequired: true,
-                transferable: false,  // Non-transferable
+                transferable: false, // Non-transferable
                 revenueCap: 100000 ether, // Example: 100k USD equivalent (adjust decimals as needed)
                 additionalTermsURI: "ipfs://QmEduIndieTermsV1" // Placeholder
             });
@@ -130,13 +130,7 @@ library LicensePreset {
                 "Attribution required"
             ];
         } else {
-            return [
-                "Custom terms",
-                "See full license details",
-                "",
-                "",
-                ""
-            ];
+            return ["Custom terms", "See full license details", "", "", ""];
         }
     }
 

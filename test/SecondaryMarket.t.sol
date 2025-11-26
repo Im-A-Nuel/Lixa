@@ -62,7 +62,7 @@ contract SecondaryMarketTest is Test {
             creator
         );
 
-        (,,ftAddress,,,,,,, ) = fractionalizer.poolInfo(poolId);
+        (,, ftAddress,,,,,,,) = fractionalizer.poolInfo(poolId);
         FractionalToken ft = FractionalToken(ftAddress);
         ft.approve(address(fractionalizer), INITIAL_SUPPLY);
         vm.stopPrank();
@@ -93,8 +93,14 @@ contract SecondaryMarketTest is Test {
         // Verify order created
         assertEq(orderId, 1, "First order should be ID 1");
 
-        (uint256 pid, address ft_addr, address seller_addr, uint256 amount, uint256 price, bool active, )
-            = market.getOrderDetails(orderId);
+        (
+            uint256 pid,
+            address ft_addr,
+            address seller_addr,
+            uint256 amount,
+            uint256 price,
+            bool active,
+        ) = market.getOrderDetails(orderId);
 
         assertEq(pid, poolId, "Pool ID mismatch");
         assertEq(ft_addr, ftAddress, "FT address mismatch");
@@ -130,11 +136,13 @@ contract SecondaryMarketTest is Test {
 
         // Verify balances
         assertEq(ft.balanceOf(buyer), buyerFTBalanceBefore + 100, "Buyer should receive tokens");
-        assertEq(seller.balance, sellerBalanceBefore + sellerProceeds, "Seller should receive payment");
+        assertEq(
+            seller.balance, sellerBalanceBefore + sellerProceeds, "Seller should receive payment"
+        );
         assertEq(platformOwner.balance, platformFee, "Platform should receive fee");
 
         // Verify order is closed
-        (,,,, , bool active, ) = market.getOrderDetails(orderId);
+        (,,,,, bool active,) = market.getOrderDetails(orderId);
         assertFalse(active, "Order should be inactive");
     }
 
@@ -158,7 +166,7 @@ contract SecondaryMarketTest is Test {
         assertEq(ft.balanceOf(buyer), buyAmount, "Buyer should receive 30 tokens");
 
         // Verify order is still active with reduced amount
-        (,,,uint256 remainingAmount, , bool active, ) = market.getOrderDetails(orderId);
+        (,,, uint256 remainingAmount,, bool active,) = market.getOrderDetails(orderId);
         assertTrue(active, "Order should still be active");
         assertEq(remainingAmount, 70, "Order should have 70 tokens left");
     }
@@ -176,7 +184,7 @@ contract SecondaryMarketTest is Test {
         vm.stopPrank();
 
         // Verify order is cancelled
-        (,,,, , bool active, ) = market.getOrderDetails(orderId);
+        (,,,,, bool active,) = market.getOrderDetails(orderId);
         assertFalse(active, "Order should be inactive");
 
         // Verify tokens returned to seller
@@ -262,7 +270,7 @@ contract SecondaryMarketTest is Test {
         assertEq(ft.balanceOf(buyer2), 60, "Buyer2 should have 60 tokens");
 
         // Order should be closed
-        (,,,, , bool active, ) = market.getOrderDetails(orderId);
+        (,,,,, bool active,) = market.getOrderDetails(orderId);
         assertFalse(active, "Order should be fully filled");
     }
 

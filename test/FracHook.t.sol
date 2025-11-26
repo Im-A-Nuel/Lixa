@@ -56,7 +56,7 @@ contract FracHookTest is Test {
             creator
         );
 
-        (,,address ftAddress,,,,,,bool active,) = fractionalizer.poolInfo(poolId);
+        (,, address ftAddress,,,,,, bool active,) = fractionalizer.poolInfo(poolId);
         FractionalToken ft = FractionalToken(ftAddress);
 
         // Approve fractionalizer to sell tokens
@@ -72,8 +72,12 @@ contract FracHookTest is Test {
         fractionalizer.depositToPool{value: dividendAmount}(poolId);
 
         // 4. Verify dividendsPerToken is updated
-        (,,,,,,,,,uint256 dividendsPerToken) = fractionalizer.poolInfo(poolId);
-        assertEq(dividendsPerToken, (dividendAmount * 1e18) / INITIAL_SUPPLY, "dividendsPerToken should be updated");
+        (,,,,,,,,, uint256 dividendsPerToken) = fractionalizer.poolInfo(poolId);
+        assertEq(
+            dividendsPerToken,
+            (dividendAmount * 1e18) / INITIAL_SUPPLY,
+            "dividendsPerToken should be updated"
+        );
 
         // 5. CRITICAL TEST: Buyer1 transfers 50 tokens to Buyer2
         vm.prank(buyer1);
@@ -103,7 +107,7 @@ contract FracHookTest is Test {
         fractionalizer.depositToPool{value: secondDividend}(poolId);
 
         // 9. Now BOTH should be able to claim proportionally for NEW dividends
-        (,,,,,,,,,uint256 newDividendsPerToken) = fractionalizer.poolInfo(poolId);
+        (,,,,,,,,, uint256 newDividendsPerToken) = fractionalizer.poolInfo(poolId);
         uint256 totalNewDividends = ((newDividendsPerToken - dividendsPerToken) * 50 ether) / 1e18;
 
         buyer1Claimable = fractionalizer.claimableAmount(poolId, buyer1);
@@ -134,7 +138,7 @@ contract FracHookTest is Test {
             creator
         );
 
-        (,,address ftAddress,,,,,,bool active,) = fractionalizer.poolInfo(poolId);
+        (,, address ftAddress,,,,,, bool active,) = fractionalizer.poolInfo(poolId);
         FractionalToken ft = FractionalToken(ftAddress);
         ft.approve(address(fractionalizer), 1000 ether);
         vm.stopPrank();
@@ -158,11 +162,15 @@ contract FracHookTest is Test {
 
         // Verify no user can claim more than their fair share
         uint256 totalClaimable = fractionalizer.claimableAmount(poolId, buyer1)
-                                + fractionalizer.claimableAmount(poolId, buyer2)
-                                + fractionalizer.claimableAmount(poolId, creator);
+            + fractionalizer.claimableAmount(poolId, buyer2)
+            + fractionalizer.claimableAmount(poolId, creator);
 
         // Total should equal total dividends deposited (15 ether)
         assertLe(totalClaimable, 15 ether, "Total claims should not exceed deposits");
-        assertGe(totalClaimable, 14.9 ether, "Claims should be close to deposits (accounting for rounding)");
+        assertGe(
+            totalClaimable,
+            14.9 ether,
+            "Claims should be close to deposits (accounting for rounding)"
+        );
     }
 }

@@ -83,11 +83,8 @@ contract Deploy is Script {
         // STEP 6: Deploy LicenseManager
         // ==============================================
         console.log("\n6. Deploying LicenseManager...");
-        licenseManager = new LicenseManager(
-            address(registry),
-            address(licenseNft),
-            address(fractionalizer)
-        );
+        licenseManager =
+            new LicenseManager(address(registry), address(licenseNft), address(fractionalizer));
         console.log("   LicenseManager deployed at:", address(licenseManager));
 
         // ==============================================
@@ -123,17 +120,33 @@ contract Deploy is Script {
         // Save addresses to file
         string memory addresses = string.concat(
             "# Lixa Deployed Contracts\n\n",
-            "Network: ", vm.toString(block.chainid), "\n",
-            "Deployer: ", vm.toString(deployer), "\n\n",
+            "Network: ",
+            vm.toString(block.chainid),
+            "\n",
+            "Deployer: ",
+            vm.toString(deployer),
+            "\n\n",
             "## Core Contracts\n",
-            "AssetNFT: ", vm.toString(address(assetNft)), "\n",
-            "AssetRegistry: ", vm.toString(address(registry)), "\n",
-            "Fractionalizer: ", vm.toString(address(fractionalizer)), "\n\n",
+            "AssetNFT: ",
+            vm.toString(address(assetNft)),
+            "\n",
+            "AssetRegistry: ",
+            vm.toString(address(registry)),
+            "\n",
+            "Fractionalizer: ",
+            vm.toString(address(fractionalizer)),
+            "\n\n",
             "## License System\n",
-            "LicenseNFT: ", vm.toString(address(licenseNft)), "\n",
-            "LicenseManager: ", vm.toString(address(licenseManager)), "\n\n",
+            "LicenseNFT: ",
+            vm.toString(address(licenseNft)),
+            "\n",
+            "LicenseManager: ",
+            vm.toString(address(licenseManager)),
+            "\n\n",
             "## Secondary Market\n",
-            "SecondaryMarket: ", vm.toString(address(secondaryMarket)), "\n"
+            "SecondaryMarket: ",
+            vm.toString(address(secondaryMarket)),
+            "\n"
         );
 
         vm.writeFile("deployments/latest.txt", addresses);

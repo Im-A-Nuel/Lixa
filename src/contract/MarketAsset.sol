@@ -61,7 +61,10 @@ contract AssetNFT is ERC721URIStorage, Ownable {
         _;
     }
 
-    constructor(string memory name_, string memory symbol_) ERC721(name_, symbol_) Ownable(msg.sender) {
+    constructor(string memory name_, string memory symbol_)
+        ERC721(name_, symbol_)
+        Ownable(msg.sender)
+    {
         // NOTE: for production, prefer passing registry in constructor
         registry = msg.sender;
     }
@@ -70,7 +73,11 @@ contract AssetNFT is ERC721URIStorage, Ownable {
         registry = _r;
     }
 
-    function mintFor(address to, string calldata tokenURI_) external onlyRegistry returns (uint256) {
+    function mintFor(address to, string calldata tokenURI_)
+        external
+        onlyRegistry
+        returns (uint256)
+    {
         _tokenIds.increment();
         uint256 id = _tokenIds.current();
         _mint(to, id);
@@ -177,7 +184,9 @@ contract AssetRegistry is Ownable, ReentrancyGuard {
             exists: true
         });
 
-        emit AssetRegistered(aid, msg.sender, address(assetNFT), tokenId, metadataURI, defaultRoyaltyBPS);
+        emit AssetRegistered(
+            aid, msg.sender, address(assetNFT), tokenId, metadataURI, defaultRoyaltyBPS
+        );
         return aid;
     }
 
@@ -211,10 +220,10 @@ contract Fractionalizer is Ownable, ReentrancyGuard, IFracHook {
         uint256 tokenId;
         address ftAddress; // fractional token
         uint256 totalFractions;
-        address originalOwner;      // initial FT holder (seller in primary sale)
-        uint256 salePricePerToken;  // in wei
-        uint256 amountForSale;      // how many tokens available in initial sale
-        uint256 sold;               // sold so far
+        address originalOwner; // initial FT holder (seller in primary sale)
+        uint256 salePricePerToken; // in wei
+        uint256 amountForSale; // how many tokens available in initial sale
+        uint256 sold; // sold so far
         bool active;
         // dividend tracking
         uint256 dividendsPerToken; // scaled by 1e18
@@ -282,12 +291,7 @@ contract Fractionalizer is Ownable, ReentrancyGuard, IFracHook {
 
         // Deploy FractionalToken and mint totalSupply_ to toReceiveInitial
         FractionalToken ft = new FractionalToken(
-            name_,
-            symbol_,
-            totalSupply_,
-            toReceiveInitial,
-            address(this),
-            tokenId
+            name_, symbol_, totalSupply_, toReceiveInitial, address(this), tokenId
         );
 
         _poolCounter.increment();
@@ -300,7 +304,7 @@ contract Fractionalizer is Ownable, ReentrancyGuard, IFracHook {
         p.tokenId = tokenId;
         p.ftAddress = address(ft);
         p.totalFractions = totalSupply_;
-        p.originalOwner = toReceiveInitial;  // seller in primary sale
+        p.originalOwner = toReceiveInitial; // seller in primary sale
         p.salePricePerToken = salePricePerToken_;
         p.amountForSale = amountForSale_;
         p.sold = 0;
@@ -351,7 +355,7 @@ contract Fractionalizer is Ownable, ReentrancyGuard, IFracHook {
         p.sold += amount;
 
         // forward payment to seller (creator/owner)
-        (bool sent, ) = payable(seller).call{value: msg.value}("");
+        (bool sent,) = payable(seller).call{value: msg.value}("");
         require(sent, "payment transfer failed");
 
         emit FractionsBought(poolId, msg.sender, amount, msg.value);
@@ -388,7 +392,7 @@ contract Fractionalizer is Ownable, ReentrancyGuard, IFracHook {
         uint256 amount = totalEntitled - already;
         p.withdrawn[msg.sender] = totalEntitled;
 
-        (bool sent, ) = payable(msg.sender).call{value: amount}("");
+        (bool sent,) = payable(msg.sender).call{value: amount}("");
         require(sent, "transfer failed");
 
         emit DividendClaimed(poolId, msg.sender, amount);
@@ -472,7 +476,10 @@ contract Fractionalizer is Ownable, ReentrancyGuard, IFracHook {
      *
      * This prevents B from claiming dividends that were earned before they owned the tokens
      */
-    function onFTTransfer(uint256 poolId, address from, address to, uint256 amount) external override {
+    function onFTTransfer(uint256 poolId, address from, address to, uint256 amount)
+        external
+        override
+    {
         Pool storage p = pools[poolId];
         require(msg.sender == p.ftAddress, "only FT contract");
         require(p.active, "pool inactive");
@@ -498,7 +505,10 @@ contract LicenseNFT is ERC721URIStorage, Ownable {
         _;
     }
 
-    constructor(string memory name_, string memory symbol_) ERC721(name_, symbol_) Ownable(msg.sender) {
+    constructor(string memory name_, string memory symbol_)
+        ERC721(name_, symbol_)
+        Ownable(msg.sender)
+    {
         // NOTE: for production, pass manager in constructor
         manager = msg.sender;
     }
@@ -527,7 +537,11 @@ contract LicenseManager is Ownable, ReentrancyGuard {
     using Counters for Counters.Counter;
     Counters.Counter private _offerCounter;
 
-    enum LicenseType { NON_EXCLUSIVE, EXCLUSIVE, DERIVATIVE }
+    enum LicenseType {
+        NON_EXCLUSIVE,
+        EXCLUSIVE,
+        DERIVATIVE
+    }
 
     struct Offer {
         uint256 offerId;
@@ -563,9 +577,13 @@ contract LicenseManager is Ownable, ReentrancyGuard {
         LicensePreset.PresetType preset,
         uint256 maxSupply
     );
-    event LicensePurchased(uint256 indexed offerId, uint256 indexed licenseTokenId, address buyer, uint256 price);
+    event LicensePurchased(
+        uint256 indexed offerId, uint256 indexed licenseTokenId, address buyer, uint256 price
+    );
 
-    constructor(address _assetRegistry, address _licenseNft, address _fractionalizer) Ownable(msg.sender) {
+    constructor(address _assetRegistry, address _licenseNft, address _fractionalizer)
+        Ownable(msg.sender)
+    {
         registry = AssetRegistry(_assetRegistry);
         licenseNft = LicenseNFT(_licenseNft);
         fractionalizer = Fractionalizer(payable(_fractionalizer));
@@ -587,10 +605,7 @@ contract LicenseManager is Ownable, ReentrancyGuard {
 
         // only creator or current NFT owner can create offers
         address currentOwner = ERC721(a.nftContract).ownerOf(a.tokenId);
-        require(
-            msg.sender == a.creator || msg.sender == currentOwner,
-            "not creator/owner"
-        );
+        require(msg.sender == a.creator || msg.sender == currentOwner, "not creator/owner");
 
         // For EXCLUSIVE: ensure no active exclusive lock
         if (ltype == LicenseType.EXCLUSIVE) {
@@ -655,19 +670,19 @@ contract LicenseManager is Ownable, ReentrancyGuard {
         uint256 poolId = fractionalizer.assetToPool(o.assetId);
         if (poolId != 0) {
             // forward funds to fractionalizer pool (acts as treasury for this asset)
-            (bool ok, ) = address(fractionalizer).call{value: o.price}(
+            (bool ok,) = address(fractionalizer).call{value: o.price}(
                 abi.encodeWithSignature("depositToPool(uint256)", poolId)
             );
             require(ok, "deposit failed");
         } else {
             // send to seller directly
-            (bool sent, ) = payable(o.seller).call{value: o.price}("");
+            (bool sent,) = payable(o.seller).call{value: o.price}("");
             require(sent, "seller transfer failed");
         }
 
         // refund overflow
         if (msg.value > o.price) {
-            (bool r, ) = payable(msg.sender).call{value: msg.value - o.price}("");
+            (bool r,) = payable(msg.sender).call{value: msg.value - o.price}("");
             require(r, "refund failed");
         }
 

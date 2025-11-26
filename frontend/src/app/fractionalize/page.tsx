@@ -2,12 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi";
+import {
+  useAccount,
+  useReadContract,
+  useWriteContract,
+  usePublicClient,
+} from "wagmi";
 import Link from "next/link";
 import { parseUnits, parseEther } from "viem";
 import { getContractAddress } from "@/lib/contracts/addresses";
 import AssetRegistryABI from "@/lib/contracts/AssetRegistry.json";
 import FractionalizerABI from "@/lib/contracts/Fractionalizer.json";
+import Header from "@/components/Header";
 
 const ERC721_APPROVE_ABI = [
   {
@@ -32,8 +38,12 @@ const ERC721_APPROVE_ABI = [
 export default function FractionalizePage() {
   const { address, chainId, isConnected } = useAccount();
   const publicClient = usePublicClient();
-  const registryAddress = chainId ? getContractAddress(chainId, "AssetRegistry") : undefined;
-  const fractionalizerAddress = chainId ? getContractAddress(chainId, "Fractionalizer") : undefined;
+  const registryAddress = chainId
+    ? getContractAddress(chainId, "AssetRegistry")
+    : undefined;
+  const fractionalizerAddress = chainId
+    ? getContractAddress(chainId, "Fractionalizer")
+    : undefined;
 
   const [assetIdInput, setAssetIdInput] = useState("1");
   const assetId = assetIdInput ? BigInt(assetIdInput) : undefined;
@@ -46,9 +56,15 @@ export default function FractionalizePage() {
 
   const [actionHash, setActionHash] = useState<string | undefined>();
   const [actionError, setActionError] = useState<string | undefined>();
-  const [status, setStatus] = useState<"idle" | "approving" | "fractionalizing" | "approvingSale" | "done">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "approving" | "fractionalizing" | "approvingSale" | "done"
+  >("idle");
 
-  const { data: asset, error: assetError, isLoading: loadingAsset } = useReadContract({
+  const {
+    data: asset,
+    error: assetError,
+    isLoading: loadingAsset,
+  } = useReadContract({
     address: registryAddress,
     abi: AssetRegistryABI,
     functionName: "getAsset",
@@ -106,7 +122,10 @@ export default function FractionalizePage() {
 
     try {
       // Step 1: approve if needed
-      if (!currentApproval || currentApproval.toLowerCase() !== fractionalizerAddress.toLowerCase()) {
+      if (
+        !currentApproval ||
+        currentApproval.toLowerCase() !== fractionalizerAddress.toLowerCase()
+      ) {
         setStatus("approving");
         const approveHash = await writeContractAsync({
           address: nftContract,
@@ -116,7 +135,9 @@ export default function FractionalizePage() {
         });
         setActionHash(approveHash as `0x${string}`);
         if (publicClient) {
-          await publicClient.waitForTransactionReceipt({ hash: approveHash as `0x${string}` });
+          await publicClient.waitForTransactionReceipt({
+            hash: approveHash as `0x${string}`,
+          });
         }
       }
 
@@ -153,7 +174,9 @@ export default function FractionalizePage() {
       });
       setActionHash(fracHash as `0x${string}`);
       if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash: fracHash as `0x${string}` });
+        await publicClient.waitForTransactionReceipt({
+          hash: fracHash as `0x${string}`,
+        });
       }
 
       // Step 3: auto-approve sale amount from FT owner to Fractionalizer
@@ -165,7 +188,9 @@ export default function FractionalizePage() {
             functionName: "totalPools",
           });
           const poolId =
-            poolsBefore && typeof poolsBefore === "bigint" ? poolsBefore + 1n : (poolsAfter as bigint);
+            poolsBefore && typeof poolsBefore === "bigint"
+              ? poolsBefore + 1n
+              : (poolsAfter as bigint);
           const poolInfo = (await publicClient.readContract({
             address: fractionalizerAddress,
             abi: FractionalizerABI,
@@ -193,7 +218,9 @@ export default function FractionalizePage() {
             args: [fractionalizerAddress, amountForSaleWei],
           });
           setActionHash(approveSaleHash as `0x${string}`);
-          await publicClient.waitForTransactionReceipt({ hash: approveSaleHash as `0x${string}` });
+          await publicClient.waitForTransactionReceipt({
+            hash: approveSaleHash as `0x${string}`,
+          });
         } catch (err) {
           console.error("Auto-approve sale failed", err);
         }
@@ -207,56 +234,35 @@ export default function FractionalizePage() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-gray-800 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-              Lixa
-            </Link>
-            <nav className="hidden md:flex gap-6">
-              <Link href="/marketplace" className="text-gray-400 hover:text-white transition">
-                Marketplace
-              </Link>
-              <Link href="/pools" className="text-gray-400 hover:text-white transition">
-                Pools
-              </Link>
-              <Link href="/fractionalize" className="text-white font-medium">
-                Fractionalize
-              </Link>
-              <Link href="/licenses" className="text-gray-400 hover:text-white transition">
-                Licenses
-              </Link>
-              <Link href="/create" className="text-gray-400 hover:text-white transition">
-                Create
-              </Link>
-              <Link href="/portfolio" className="text-gray-400 hover:text-white transition">
-                Portfolio
-              </Link>
-            </nav>
-          </div>
-          <ConnectButton />
-        </div>
-      </header>
+      {/* Header */}
+      <Header />
 
       <main className="max-w-3xl mx-auto px-6 py-12 space-y-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">Fractionalize Asset</h1>
-          <p className="text-gray-400">Lock your AssetNFT and mint fractional ERC-20 tokens.</p>
+          <p className="text-gray-400">
+            Lock your AssetNFT and mint fractional ERC-20 tokens.
+          </p>
         </div>
 
         {!isConnected ? (
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 text-center">
-            <p className="text-gray-400 mb-4">Connect your wallet to continue</p>
+            <p className="text-gray-400 mb-4">
+              Connect your wallet to continue
+            </p>
             <ConnectButton />
           </div>
         ) : !registryAddress || !fractionalizerAddress ? (
           <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4 text-yellow-400">
-            Please switch to a supported network (Anvil 31337 or the chain you deployed to).
+            Please switch to a supported network (Anvil 31337 or the chain you
+            deployed to).
           </div>
         ) : (
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Asset ID</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Asset ID
+              </label>
               <input
                 type="number"
                 value={assetIdInput}
@@ -264,9 +270,17 @@ export default function FractionalizePage() {
                 min="1"
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
               />
-              <p className="text-sm text-gray-500 mt-1">Enter an existing assetId from the registry.</p>
-              {loadingAsset && <p className="text-sm text-gray-400 mt-2">Loading asset...</p>}
-              {assetError && <p className="text-sm text-red-400 mt-2">Error: {assetError.message}</p>}
+              <p className="text-sm text-gray-500 mt-1">
+                Enter an existing assetId from the registry.
+              </p>
+              {loadingAsset && (
+                <p className="text-sm text-gray-400 mt-2">Loading asset...</p>
+              )}
+              {assetError && (
+                <p className="text-sm text-red-400 mt-2">
+                  Error: {assetError.message}
+                </p>
+              )}
               {asset && !(asset as any).exists && (
                 <p className="text-sm text-red-400 mt-2">Asset not found.</p>
               )}
@@ -282,7 +296,9 @@ export default function FractionalizePage() {
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">FT Name</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  FT Name
+                </label>
                 <input
                   type="text"
                   value={ftName}
@@ -291,7 +307,9 @@ export default function FractionalizePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">FT Symbol</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  FT Symbol
+                </label>
                 <input
                   type="text"
                   value={ftSymbol}
@@ -303,7 +321,9 @@ export default function FractionalizePage() {
 
             <div className="grid md-grid-cols-2 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Total Supply (tokens)</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Total Supply (tokens)
+                </label>
                 <input
                   type="number"
                   value={totalSupply}
@@ -311,10 +331,14 @@ export default function FractionalizePage() {
                   onChange={(e) => setTotalSupply(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
                 />
-                <p className="text-sm text-gray-500 mt-1">Uses 18 decimals (e.g., 1000 = 1000 * 1e18).</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Uses 18 decimals (e.g., 1000 = 1000 * 1e18).
+                </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Amount For Sale (tokens)</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Amount For Sale (tokens)
+                </label>
                 <input
                   type="number"
                   value={amountForSale}
@@ -326,7 +350,9 @@ export default function FractionalizePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Price per Token (ETH)</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Price per Token (ETH)
+              </label>
               <input
                 type="text"
                 value={pricePerToken}
@@ -343,13 +369,28 @@ export default function FractionalizePage() {
 
             <div className="grid md:grid-cols-2 gap-4">
               <div className="text-sm text-gray-400 space-y-1">
-                <p>Status: {status === "idle" ? "Idle" : status === "approving" ? "Approving NFT" : status === "fractionalizing" ? "Fractionalizing" : "Done"}</p>
-                {actionHash && <p className="break-all">Last TX: {actionHash}</p>}
+                <p>
+                  Status:{" "}
+                  {status === "idle"
+                    ? "Idle"
+                    : status === "approving"
+                    ? "Approving NFT"
+                    : status === "fractionalizing"
+                    ? "Fractionalizing"
+                    : "Done"}
+                </p>
+                {actionHash && (
+                  <p className="break-all">Last TX: {actionHash}</p>
+                )}
               </div>
               <button
                 type="button"
                 onClick={handleApproveAndFractionalize}
-                disabled={!canFractionalize || status === "approving" || status === "fractionalizing"}
+                disabled={
+                  !canFractionalize ||
+                  status === "approving" ||
+                  status === "fractionalizing"
+                }
                 className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition"
               >
                 {status === "approving"
@@ -362,7 +403,8 @@ export default function FractionalizePage() {
 
             {status === "done" && (
               <div className="bg-green-900/20 border border-green-700 rounded-lg p-3 text-green-400 text-sm">
-                Fractionalization complete! {actionHash ? `TX: ${actionHash}` : ""}
+                Fractionalization complete!{" "}
+                {actionHash ? `TX: ${actionHash}` : ""}
               </div>
             )}
           </div>

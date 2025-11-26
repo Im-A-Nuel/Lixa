@@ -16,7 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Lixa - License Exchange for Game Assets",
-  description: "License. Fraction. Earn. - Marketplace for game assets with on-chain licensing and programmable royalties.",
+  description:
+    "License. Fraction. Earn. - Marketplace for game assets with on-chain licensing and programmable royalties.",
 };
 
 export default function RootLayout({

@@ -2,15 +2,24 @@
 
 import { useMemo, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import {
+  useAccount,
+  useReadContract,
+  useReadContracts,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+} from "wagmi";
 import Link from "next/link";
 import { formatEther, parseEther } from "viem";
 import { getContractAddress } from "@/lib/contracts/addresses";
 import LicenseManagerABI from "@/lib/contracts/LicenseManager.json";
+import Header from "@/components/Header";
 
 export default function LicensesPage() {
   const { chainId, isConnected } = useAccount();
-  const licenseManager = chainId ? getContractAddress(chainId, "LicenseManager") : undefined;
+  const licenseManager = chainId
+    ? getContractAddress(chainId, "LicenseManager")
+    : undefined;
 
   const { data: totalOffers } = useReadContract({
     address: licenseManager,
@@ -38,8 +47,20 @@ export default function LicensesPage() {
     return offersData
       .map((entry, idx) => {
         if (!entry || entry.status !== "success") return null;
-        const [offerId, assetId, seller, price, royaltyBPS, ltype, preset, maxSupply, sold, duration, active, uri] =
-          entry.result as any;
+        const [
+          offerId,
+          assetId,
+          seller,
+          price,
+          royaltyBPS,
+          ltype,
+          preset,
+          maxSupply,
+          sold,
+          duration,
+          active,
+          uri,
+        ] = entry.result as any;
         if (!active) return null;
         return {
           offerId: Number(offerId),
@@ -80,7 +101,9 @@ export default function LicensesPage() {
   const [uriInput, setUriInput] = useState("ipfs://...");
 
   const { writeContract, data: txHash, error } = useWriteContract();
-  const { isLoading: confirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
+  const { isLoading: confirming, isSuccess } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
 
   const handleCreateOffer = () => {
     if (!licenseManager) return;
@@ -114,36 +137,8 @@ export default function LicensesPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-gray-800 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-              Lixa
-            </Link>
-            <nav className="hidden md:flex gap-6">
-              <Link href="/marketplace" className="text-gray-400 hover:text-white transition">
-                Marketplace
-              </Link>
-              <Link href="/pools" className="text-gray-400 hover:text-white transition">
-                Pools
-              </Link>
-              <Link href="/fractionalize" className="text-gray-400 hover:text-white transition">
-                Fractionalize
-              </Link>
-              <Link href="/licenses" className="text-white font-medium">
-                Licenses
-              </Link>
-              <Link href="/create" className="text-gray-400 hover:text-white transition">
-                Create
-              </Link>
-              <Link href="/portfolio" className="text-gray-400 hover:text-white transition">
-                Portfolio
-              </Link>
-            </nav>
-          </div>
-          <ConnectButton />
-        </div>
-      </header>
+      {/* Header */}
+      <Header />
 
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-10">
         <div className="flex justify-between items-center">
@@ -185,7 +180,9 @@ export default function LicensesPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm text-gray-400">License Type (0=NON_EXCLUSIVE,1=EXCLUSIVE,2=DERIVATIVE)</label>
+              <label className="block text-sm text-gray-400">
+                License Type (0=NON_EXCLUSIVE,1=EXCLUSIVE,2=DERIVATIVE)
+              </label>
               <input
                 type="number"
                 value={ltypeInput}
@@ -194,7 +191,10 @@ export default function LicensesPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm text-gray-400">Preset (0=IN_GAME_COMMERCIAL_V1,1=TRAILER_MARKETING_V1,2=EDU_INDIE_V1)</label>
+              <label className="block text-sm text-gray-400">
+                Preset
+                (0=IN_GAME_COMMERCIAL_V1,1=TRAILER_MARKETING_V1,2=EDU_INDIE_V1)
+              </label>
               <input
                 type="number"
                 value={presetInput}
@@ -203,7 +203,9 @@ export default function LicensesPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm text-gray-400">Max Supply (0 = unlimited)</label>
+              <label className="block text-sm text-gray-400">
+                Max Supply (0 = unlimited)
+              </label>
               <input
                 type="number"
                 value={maxSupplyInput}
@@ -212,7 +214,9 @@ export default function LicensesPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm text-gray-400">Duration (seconds, 0 = permanent)</label>
+              <label className="block text-sm text-gray-400">
+                Duration (seconds, 0 = permanent)
+              </label>
               <input
                 type="number"
                 value={durationInput}
@@ -221,7 +225,9 @@ export default function LicensesPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm text-gray-400">Metadata URI</label>
+              <label className="block text-sm text-gray-400">
+                Metadata URI
+              </label>
               <input
                 type="text"
                 value={uriInput}
@@ -236,8 +242,14 @@ export default function LicensesPage() {
             >
               {confirming ? "Submitting..." : "Create Offer"}
             </button>
-            {isSuccess && <p className="text-xs text-green-400">TX: {txHash}</p>}
-            {error && <p className="text-xs text-red-400 break-all">Error: {error.message}</p>}
+            {isSuccess && (
+              <p className="text-xs text-green-400">TX: {txHash}</p>
+            )}
+            {error && (
+              <p className="text-xs text-red-400 break-all">
+                Error: {error.message}
+              </p>
+            )}
           </div>
 
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
@@ -247,15 +259,29 @@ export default function LicensesPage() {
             ) : (
               <div className="space-y-3 max-h-[480px] overflow-auto pr-2">
                 {offers.map((o) => (
-                  <div key={o.offerId} className="border border-gray-800 rounded p-3 space-y-2">
+                  <div
+                    key={o.offerId}
+                    className="border border-gray-800 rounded p-3 space-y-2"
+                  >
                     <div className="flex justify-between text-sm text-gray-300">
                       <span>Offer #{o.offerId}</span>
                       <span>Asset #{o.assetId.toString()}</span>
                     </div>
-                    <p className="text-sm text-gray-400">Price: {formatEther(o.price)} ETH</p>
-                    <p className="text-sm text-gray-400">Max supply: {o.maxSupply.toString() === "0" ? "Unlimited" : o.maxSupply.toString()}</p>
-                    <p className="text-sm text-gray-400">Sold: {o.sold.toString()}</p>
-                    <p className="text-sm text-gray-400 break-all">URI: {o.uri}</p>
+                    <p className="text-sm text-gray-400">
+                      Price: {formatEther(o.price)} ETH
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Max supply:{" "}
+                      {o.maxSupply.toString() === "0"
+                        ? "Unlimited"
+                        : o.maxSupply.toString()}
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Sold: {o.sold.toString()}
+                    </p>
+                    <p className="text-sm text-gray-400 break-all">
+                      URI: {o.uri}
+                    </p>
                     <button
                       onClick={() => handleBuy(o.offerId, o.price)}
                       disabled={!isConnected}

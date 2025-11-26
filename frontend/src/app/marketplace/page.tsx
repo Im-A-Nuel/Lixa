@@ -18,6 +18,7 @@ import FractionalizerABI from "@/lib/contracts/Fractionalizer.json";
 import SecondaryMarketABI from "@/lib/contracts/SecondaryMarket.json";
 import { ipfsToHttp, ipfsHttpGateways } from "@/lib/ipfs";
 import { AssetMedia } from "@/components/AssetMedia";
+import Header from "@/components/Header";
 
 const ERC20_ABI = [
   {
@@ -45,9 +46,15 @@ const ERC20_ABI = [
 export default function MarketplacePage() {
   const { chainId, address, isConnected } = useAccount();
   const publicClient = usePublicClient();
-  const registryAddress = chainId ? getContractAddress(chainId, "AssetRegistry") : undefined;
-  const fractionalizerAddress = chainId ? getContractAddress(chainId, "Fractionalizer") : undefined;
-  const secondaryAddress = chainId ? getContractAddress(chainId, "SecondaryMarket") : undefined;
+  const registryAddress = chainId
+    ? getContractAddress(chainId, "AssetRegistry")
+    : undefined;
+  const fractionalizerAddress = chainId
+    ? getContractAddress(chainId, "Fractionalizer")
+    : undefined;
+  const secondaryAddress = chainId
+    ? getContractAddress(chainId, "SecondaryMarket")
+    : undefined;
 
   // Assets
   const { data: totalAssets } = useReadContract({
@@ -98,7 +105,16 @@ export default function MarketplacePage() {
   }, [assetsData]);
 
   const [metaMap, setMetaMap] = useState<
-    Record<number, { name?: string; description?: string; image?: string; mimeType?: string; filename?: string }>
+    Record<
+      number,
+      {
+        name?: string;
+        description?: string;
+        image?: string;
+        mimeType?: string;
+        filename?: string;
+      }
+    >
   >({});
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -129,7 +145,11 @@ export default function MarketplacePage() {
           fetched = true;
           break;
         } catch (err) {
-          console.error("metadata fetch failed", { uri: a.metadataURI, url }, err);
+          console.error(
+            "metadata fetch failed",
+            { uri: a.metadataURI, url },
+            err
+          );
         }
       }
 
@@ -146,7 +166,9 @@ export default function MarketplacePage() {
     });
   }, [assets, metaMap]);
 
-  const selectedAsset = selectedId ? assets.find((a) => a.id === selectedId) : undefined;
+  const selectedAsset = selectedId
+    ? assets.find((a) => a.id === selectedId)
+    : undefined;
   const selectedMeta = selectedAsset ? metaMap[selectedAsset.id] : undefined;
   const selectedImage = selectedMeta?.image;
 
@@ -177,8 +199,17 @@ export default function MarketplacePage() {
     return poolData
       .map((entry, idx) => {
         if (!entry || entry.status !== "success") return null;
-        const [nftContract, tokenId, ftAddress, totalFractions, originalOwner, salePricePerToken, amountForSale, sold, active] =
-          entry.result as any;
+        const [
+          nftContract,
+          tokenId,
+          ftAddress,
+          totalFractions,
+          originalOwner,
+          salePricePerToken,
+          amountForSale,
+          sold,
+          active,
+        ] = entry.result as any;
         return {
           id: idx + 1,
           nftContract,
@@ -233,7 +264,15 @@ export default function MarketplacePage() {
     return ordersData
       .map((entry, idx) => {
         if (!entry || entry.status !== "success") return null;
-        const [poolId, ftAddress, seller, amount, pricePerToken, active, createdAt] = entry.result as any;
+        const [
+          poolId,
+          ftAddress,
+          seller,
+          amount,
+          pricePerToken,
+          active,
+          createdAt,
+        ] = entry.result as any;
         if (!active) return null;
         return {
           id: idx + 1,
@@ -268,15 +307,26 @@ export default function MarketplacePage() {
   }, [sellPoolId, pools]);
 
   const { data: sellAllowance } = useReadContract({
-    address: selectedPool ? (selectedPool.ftAddress as `0x${string}`) : undefined,
+    address: selectedPool
+      ? (selectedPool.ftAddress as `0x${string}`)
+      : undefined,
     abi: ERC20_ABI,
     functionName: "allowance",
-    args: selectedPool && address && secondaryAddress ? [address, secondaryAddress] : undefined,
+    args:
+      selectedPool && address && secondaryAddress
+        ? [address, secondaryAddress]
+        : undefined,
     query: { enabled: Boolean(selectedPool && address && secondaryAddress) },
   });
 
-  const { writeContractAsync, data: txHash, error: txError } = useWriteContract();
-  const { isLoading: confirmingTx } = useWaitForTransactionReceipt({ hash: txHash });
+  const {
+    writeContractAsync,
+    data: txHash,
+    error: txError,
+  } = useWriteContract();
+  const { isLoading: confirmingTx } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
 
   // Create sell order
   const handleCreateAsk = async () => {
@@ -293,17 +343,26 @@ export default function MarketplacePage() {
           args: [secondaryAddress, amountWei],
         });
         if (publicClient) {
-          await publicClient.waitForTransactionReceipt({ hash: approveHash as `0x${string}` });
+          await publicClient.waitForTransactionReceipt({
+            hash: approveHash as `0x${string}`,
+          });
         }
       }
       const createHash = await writeContractAsync({
         address: secondaryAddress,
         abi: SecondaryMarketABI,
         functionName: "createSellOrder",
-        args: [BigInt(selectedPool.id), selectedPool.ftAddress, amountWei, priceWei],
+        args: [
+          BigInt(selectedPool.id),
+          selectedPool.ftAddress,
+          amountWei,
+          priceWei,
+        ],
       });
       if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash: createHash as `0x${string}` });
+        await publicClient.waitForTransactionReceipt({
+          hash: createHash as `0x${string}`,
+        });
       }
       await refetchOrders();
     } catch (err) {
@@ -312,7 +371,10 @@ export default function MarketplacePage() {
   };
 
   // Buy order
-  const handleBuyOrder = async (order: (typeof orders)[number], input: string) => {
+  const handleBuyOrder = async (
+    order: (typeof orders)[number],
+    input: string
+  ) => {
     if (!secondaryAddress) return;
     const amtWei = parseUnits(input || "0", 18);
     if (amtWei === 0n || amtWei > order.amount) return;
@@ -326,7 +388,9 @@ export default function MarketplacePage() {
         value: cost,
       });
       if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash: buyHash as `0x${string}` });
+        await publicClient.waitForTransactionReceipt({
+          hash: buyHash as `0x${string}`,
+        });
       }
       await refetchOrders();
     } catch (err) {
@@ -345,7 +409,9 @@ export default function MarketplacePage() {
         args: [BigInt(orderId)],
       });
       if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash: cancelHash as `0x${string}` });
+        await publicClient.waitForTransactionReceipt({
+          hash: cancelHash as `0x${string}`,
+        });
       }
       await refetchOrders();
     } catch (err) {
@@ -355,43 +421,17 @@ export default function MarketplacePage() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-gray-800 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-              Lixa
-            </Link>
-            <nav className="hidden md:flex gap-6">
-              <Link href="/marketplace" className="text-white font-medium">
-                Marketplace
-              </Link>
-              <Link href="/pools" className="text-gray-400 hover:text-white transition">
-                Pools
-              </Link>
-              <Link href="/fractionalize" className="text-gray-400 hover:text-white transition">
-                Fractionalize
-              </Link>
-              <Link href="/licenses" className="text-gray-400 hover:text-white transition">
-                Licenses
-              </Link>
-              <Link href="/create" className="text-gray-400 hover:text-white transition">
-                Create
-              </Link>
-              <Link href="/portfolio" className="text-gray-400 hover:text-white transition">
-                Portfolio
-              </Link>
-            </nav>
-          </div>
-          <ConnectButton />
-        </div>
-      </header>
+      {/* Header */}
+      <Header />
 
       <main className="max-w-7xl mx-auto px-6 py-12">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Marketplace</h1>
             <p className="text-gray-400 mt-1">
-              {totalAssets ? `${totalAssets.toString()} assets listed` : "Browse game assets"}
+              {totalAssets
+                ? `${totalAssets.toString()} assets listed`
+                : "Browse game assets"}
             </p>
           </div>
           <Link
@@ -404,16 +444,32 @@ export default function MarketplacePage() {
 
         {/* Asset Grid */}
         {assetsLoading ? (
-          <div className="text-center text-gray-400 py-10">Loading assets...</div>
+          <div className="text-center text-gray-400 py-10">
+            Loading assets...
+          </div>
         ) : assets.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              <svg
+                className="w-10 h-10 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">No assets yet</h3>
-            <p className="text-gray-500 mb-6">Be the first to list your game asset!</p>
+            <h3 className="text-xl font-semibold text-gray-400 mb-2">
+              No assets yet
+            </h3>
+            <p className="text-gray-500 mb-6">
+              Be the first to list your game asset!
+            </p>
             <Link
               href="/create"
               className="inline-block px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition"
@@ -442,7 +498,12 @@ export default function MarketplacePage() {
                         interactive={false}
                       />
                     ) : (
-                      <svg className="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg
+                        className="w-12 h-12 text-gray-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -453,14 +514,22 @@ export default function MarketplacePage() {
                     )}
                   </div>
                   <div className="p-4 space-y-2">
-                    <h3 className="font-semibold">{meta?.name || `Asset #${asset.id}`}</h3>
+                    <h3 className="font-semibold">
+                      {meta?.name || `Asset #${asset.id}`}
+                    </h3>
                     <p className="text-sm text-gray-400">
                       {meta?.description || "No description"}
                     </p>
-                    <p className="text-sm text-gray-400">Royalty: {(asset.royaltyBPS / 100).toFixed(2)}%</p>
-                    <p className="text-xs text-gray-500 break-all">Creator: {asset.creator}</p>
+                    <p className="text-sm text-gray-400">
+                      Royalty: {(asset.royaltyBPS / 100).toFixed(2)}%
+                    </p>
+                    <p className="text-xs text-gray-500 break-all">
+                      Creator: {asset.creator}
+                    </p>
                     <div className="flex gap-2 flex-wrap">
-                      <span className="px-2 py-1 bg-purple-600/20 text-purple-400 text-xs rounded">Registered</span>
+                      <span className="px-2 py-1 bg-purple-600/20 text-purple-400 text-xs rounded">
+                        Registered
+                      </span>
                       <span className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded">
                         Token #{asset.tokenId.toString()}
                       </span>
@@ -481,7 +550,9 @@ export default function MarketplacePage() {
                   <h3 className="text-xl font-semibold">
                     {selectedMeta?.name || `Asset #${selectedAsset.id}`}
                   </h3>
-                  <p className="text-sm text-gray-400">Token #{selectedAsset.tokenId.toString()}</p>
+                  <p className="text-sm text-gray-400">
+                    Token #{selectedAsset.tokenId.toString()}
+                  </p>
                 </div>
                 <button
                   onClick={() => setSelectedId(null)}
@@ -512,8 +583,12 @@ export default function MarketplacePage() {
                   <div className="text-sm text-gray-400 space-y-1">
                     <p>Creator: {selectedAsset.creator}</p>
                     <p>Metadata: {selectedAsset.metadataURI}</p>
-                    {selectedMeta?.filename && <p>File: {selectedMeta.filename}</p>}
-                    {selectedMeta?.mimeType && <p>Mime: {selectedMeta.mimeType}</p>}
+                    {selectedMeta?.filename && (
+                      <p>File: {selectedMeta.filename}</p>
+                    )}
+                    {selectedMeta?.mimeType && (
+                      <p>Mime: {selectedMeta.mimeType}</p>
+                    )}
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     {selectedMeta?.image &&
@@ -552,7 +627,9 @@ export default function MarketplacePage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-semibold">Secondary Market</h2>
-              <p className="text-gray-400">Create sell orders and buy fractional tokens.</p>
+              <p className="text-gray-400">
+                Create sell orders and buy fractional tokens.
+              </p>
             </div>
             {!isConnected && <ConnectButton />}
           </div>
@@ -571,7 +648,9 @@ export default function MarketplacePage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="block text-sm text-gray-400">Amount (tokens)</label>
+                <label className="block text-sm text-gray-400">
+                  Amount (tokens)
+                </label>
                 <input
                   type="text"
                   value={sellAmount}
@@ -580,7 +659,9 @@ export default function MarketplacePage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="block text-sm text-gray-400">Price per token (ETH)</label>
+                <label className="block text-sm text-gray-400">
+                  Price per token (ETH)
+                </label>
                 <input
                   type="text"
                   value={sellPrice}
@@ -595,8 +676,16 @@ export default function MarketplacePage() {
               >
                 {confirmingTx ? "Submitting..." : "Create Order"}
               </button>
-              {txError && <p className="text-sm text-red-400 break-all">Error: {txError.message}</p>}
-              {selectedPool && <p className="text-xs text-gray-500 break-all">FT: {selectedPool.ftAddress}</p>}
+              {txError && (
+                <p className="text-sm text-red-400 break-all">
+                  Error: {txError.message}
+                </p>
+              )}
+              {selectedPool && (
+                <p className="text-xs text-gray-500 break-all">
+                  FT: {selectedPool.ftAddress}
+                </p>
+              )}
             </div>
 
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
@@ -606,41 +695,60 @@ export default function MarketplacePage() {
               ) : (
                 <div className="space-y-3 max-h-[420px] overflow-auto pr-2">
                   {orders.map((o) => (
-                    <div key={o.id} className="border border-gray-800 rounded p-3 space-y-2">
+                    <div
+                      key={o.id}
+                      className="border border-gray-800 rounded p-3 space-y-2"
+                    >
                       <div className="flex justify-between text-sm text-gray-300">
                         <span>Order #{o.id}</span>
                         <span>Pool #{o.poolId.toString()}</span>
                       </div>
-                      <p className="text-xs text-gray-400 break-all">FT: {o.ftAddress}</p>
-                      <p className="text-xs text-gray-400 break-all">Seller: {o.seller}</p>
+                      <p className="text-xs text-gray-400 break-all">
+                        FT: {o.ftAddress}
+                      </p>
+                      <p className="text-xs text-gray-400 break-all">
+                        Seller: {o.seller}
+                      </p>
                       <p className="text-sm text-gray-400">
-                        Price: {formatEther(o.pricePerToken)} ETH | Amount: {formatUnits(o.amount, 18)}
+                        Price: {formatEther(o.pricePerToken)} ETH | Amount:{" "}
+                        {formatUnits(o.amount, 18)}
                       </p>
 
                       <div className="space-y-2">
-                        <label className="block text-xs text-gray-400">Buy amount (tokens)</label>
+                        <label className="block text-xs text-gray-400">
+                          Buy amount (tokens)
+                        </label>
                         <input
                           type="text"
                           value={orderAmounts[o.id] ?? "0"}
-                          onChange={(e) => setOrderAmounts((prev) => ({ ...prev, [o.id]: e.target.value }))}
+                          onChange={(e) =>
+                            setOrderAmounts((prev) => ({
+                              ...prev,
+                              [o.id]: e.target.value,
+                            }))
+                          }
                           className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded focus:outline-none focus:border-purple-500 text-sm"
                         />
                         <div className="flex gap-2">
                           <button
-                            onClick={() => handleBuyOrder(o, orderAmounts[o.id] ?? "0")}
+                            onClick={() =>
+                              handleBuyOrder(o, orderAmounts[o.id] ?? "0")
+                            }
                             disabled={!isConnected}
                             className="w-full py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition text-sm"
                           >
                             Buy
                           </button>
-                          {address && address.toLowerCase() === o.seller.toLowerCase() && (
-                            <button
-                              onClick={() => handleCancelOrder(o.id)}
-                              className="w-full py-2 bg-gray-800 hover:bg-gray-700 rounded-lg font-medium transition text-sm"
-                            >
-                              Cancel
-                            </button>
-                          )}
+                          {address &&
+                            address.toLowerCase() ===
+                              o.seller.toLowerCase() && (
+                              <button
+                                onClick={() => handleCancelOrder(o.id)}
+                                className="w-full py-2 bg-gray-800 hover:bg-gray-700 rounded-lg font-medium transition text-sm"
+                              >
+                                Cancel
+                              </button>
+                            )}
                         </div>
                       </div>
                     </div>

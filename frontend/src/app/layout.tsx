@@ -15,8 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Lixa - License Exchange for Game Assets",
-  description:
-    "License. Fraction. Earn. - Marketplace for game assets with on-chain licensing and programmable royalties.",
+  description: "License. Fraction. Earn. - Marketplace for game assets with on-chain licensing and programmable royalties.",
 };
 
 export default function RootLayout({
@@ -28,7 +27,6 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-950 text-white`}
-        style={{ paddingTop: "var(--header-height, 88px)" }}
       >
         <Providers>{children}</Providers>
       </body>

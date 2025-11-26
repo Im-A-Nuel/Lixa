@@ -39,15 +39,9 @@ contract DeploySecondaryMarket is Script {
         // Save address
         string memory addresses = string.concat(
             "# SecondaryMarket\n\n",
-            "Network: ",
-            vm.toString(block.chainid),
-            "\n",
-            "Deployer: ",
-            vm.toString(deployer),
-            "\n\n",
-            "SecondaryMarket: ",
-            vm.toString(address(secondaryMarket)),
-            "\n"
+            "Network: ", vm.toString(block.chainid), "\n",
+            "Deployer: ", vm.toString(deployer), "\n\n",
+            "SecondaryMarket: ", vm.toString(address(secondaryMarket)), "\n"
         );
 
         vm.writeFile("deployments/secondary-market.txt", addresses);

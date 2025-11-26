@@ -50,8 +50,11 @@ contract DeployCore is Script {
         licenseNft = new LicenseNFT("Lixa License", "LIXLIC");
         console.log("4. LicenseNFT:     ", address(licenseNft));
 
-        licenseManager =
-            new LicenseManager(address(registry), address(licenseNft), address(fractionalizer));
+        licenseManager = new LicenseManager(
+            address(registry),
+            address(licenseNft),
+            address(fractionalizer)
+        );
         console.log("5. LicenseManager: ", address(licenseManager));
 
         licenseNft.setManager(address(licenseManager));
@@ -66,27 +69,13 @@ contract DeployCore is Script {
         // Save addresses
         string memory addresses = string.concat(
             "# Lixa Core Contracts\n\n",
-            "Network: ",
-            vm.toString(block.chainid),
-            "\n",
-            "Deployer: ",
-            vm.toString(deployer),
-            "\n\n",
-            "AssetNFT: ",
-            vm.toString(address(assetNft)),
-            "\n",
-            "AssetRegistry: ",
-            vm.toString(address(registry)),
-            "\n",
-            "Fractionalizer: ",
-            vm.toString(address(fractionalizer)),
-            "\n",
-            "LicenseNFT: ",
-            vm.toString(address(licenseNft)),
-            "\n",
-            "LicenseManager: ",
-            vm.toString(address(licenseManager)),
-            "\n"
+            "Network: ", vm.toString(block.chainid), "\n",
+            "Deployer: ", vm.toString(deployer), "\n\n",
+            "AssetNFT: ", vm.toString(address(assetNft)), "\n",
+            "AssetRegistry: ", vm.toString(address(registry)), "\n",
+            "Fractionalizer: ", vm.toString(address(fractionalizer)), "\n",
+            "LicenseNFT: ", vm.toString(address(licenseNft)), "\n",
+            "LicenseManager: ", vm.toString(address(licenseManager)), "\n"
         );
 
         vm.writeFile("deployments/core.txt", addresses);

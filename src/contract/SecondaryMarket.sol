@@ -17,13 +17,14 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * - Order matching by price
  */
 contract SecondaryMarket is Ownable, ReentrancyGuard {
+
     struct Order {
         uint256 orderId;
-        uint256 poolId; // Reference to Fractionalizer pool
-        address ftAddress; // FractionalToken contract address
+        uint256 poolId;         // Reference to Fractionalizer pool
+        address ftAddress;      // FractionalToken contract address
         address seller;
-        uint256 amount; // Amount of FT tokens for sale
-        uint256 pricePerToken; // Price per token in wei
+        uint256 amount;         // Amount of FT tokens for sale
+        uint256 pricePerToken;  // Price per token in wei
         bool active;
         uint256 createdAt;
     }
@@ -51,7 +52,10 @@ contract SecondaryMarket is Ownable, ReentrancyGuard {
     );
 
     event OrderFilled(
-        uint256 indexed orderId, address indexed buyer, uint256 amount, uint256 totalPrice
+        uint256 indexed orderId,
+        address indexed buyer,
+        uint256 amount,
+        uint256 totalPrice
     );
 
     event OrderCancelled(uint256 indexed orderId, address indexed seller);
@@ -138,18 +142,18 @@ contract SecondaryMarket is Ownable, ReentrancyGuard {
         require(success, "token transfer failed");
 
         // Transfer proceeds to seller
-        (bool sentSeller,) = payable(order.seller).call{value: sellerProceeds}("");
+        (bool sentSeller, ) = payable(order.seller).call{value: sellerProceeds}("");
         require(sentSeller, "seller payment failed");
 
         // Transfer fee to platform
         if (platformFee > 0) {
-            (bool sentFee,) = payable(feeRecipient).call{value: platformFee}("");
+            (bool sentFee, ) = payable(feeRecipient).call{value: platformFee}("");
             require(sentFee, "fee payment failed");
         }
 
         // Refund excess payment
         if (msg.value > totalPrice) {
-            (bool refunded,) = payable(msg.sender).call{value: msg.value - totalPrice}("");
+            (bool refunded, ) = payable(msg.sender).call{value: msg.value - totalPrice}("");
             require(refunded, "refund failed");
         }
 
@@ -219,19 +223,15 @@ contract SecondaryMarket is Ownable, ReentrancyGuard {
      * @notice Get detailed order information
      * @param orderId Order ID to query
      */
-    function getOrderDetails(uint256 orderId)
-        external
-        view
-        returns (
-            uint256 poolId,
-            address ftAddress,
-            address seller,
-            uint256 amount,
-            uint256 pricePerToken,
-            bool active,
-            uint256 createdAt
-        )
-    {
+    function getOrderDetails(uint256 orderId) external view returns (
+        uint256 poolId,
+        address ftAddress,
+        address seller,
+        uint256 amount,
+        uint256 pricePerToken,
+        bool active,
+        uint256 createdAt
+    ) {
         Order storage order = orders[orderId];
         return (
             order.poolId,

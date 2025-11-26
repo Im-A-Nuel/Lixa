@@ -22,6 +22,10 @@ export default function Home() {
             src="/purplewave.gif"
             alt="background animation"
             className="w-full h-full object-cover opacity-40"
+            style={{
+              filter: "blur(12px)",
+              transform: "scale(1.1)", // cegah garis pinggir akibat blur
+            }}
           />
         </div>
 

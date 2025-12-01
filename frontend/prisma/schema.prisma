@@ -1,0 +1,167 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  orderId   String   @unique
+
+  // User info
+  userAddress String
+
+  // Order details
+  side      String   // "BUY" or "SELL"
+  poolId    String
+  ftAddress String
+
+  // Amounts
+  amount      String   // Store as string to preserve precision
+  pricePerToken String  // Store as string
+  totalValue  String   // amount * price
+
+  // Status & Filling
+  status      String   @default("OPEN") // OPEN, PARTIALLY_FILLED, FILLED, CANCELLED, EXPIRED
+  filledAmount String  @default("0")
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  updatedAt   DateTime @updatedAt
+
+  // Signature
+  signature   String?
+  nonce       Int
+
+  // Chain
+  chainId     Int
+
+  // Matching & Settlement
+  buyMatches  OrderMatch[] @relation("BuyMatches")
+  sellMatches OrderMatch[] @relation("SellMatches")
+
+  @@index([userAddress])
+  @@index([status])
+  @@index([side])
+  @@index([poolId])
+  @@index([chainId])
+}
+
+model OrderMatch {
+  id        String   @id @default(cuid())
+
+  // Buyer and Seller orders
+  buyOrderId  String
+  sellOrderId String
+  buyOrder    Order    @relation("BuyMatches", fields: [buyOrderId], references: [id], onDelete: Cascade)
+  sellOrder   Order    @relation("SellMatches", fields: [sellOrderId], references: [id], onDelete: Cascade)
+
+  // Match details
+  matchedAmount String  // Amount yang ter-match
+  matchedPrice  String  // Price di match ini
+
+  // Gas fee calculation
+  gasFeePercentage Decimal @default(0.001) // 0.1% default
+  gasFeeAmount    String  // matchedAmount * matchedPrice * gasFeePercentage
+
+  // Settlement
+  status      String   @default("PENDING") // PENDING, SETTLED, FAILED
+  txHash      String?  // Transaction hash when settled onchain
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  settledAt   DateTime?
+  updatedAt   DateTime @updatedAt
+
+  @@unique([buyOrderId, sellOrderId])
+  @@index([status])
+  @@index([buyOrderId])
+  @@index([sellOrderId])
+}
+
+model OrderHistory {
+  id        String   @id @default(cuid())
+  orderId   String
+  action    String   // CREATED, FILLED, PARTIALLY_FILLED, CANCELLED, EXPIRED
+  amount    String
+  details   String?  // JSON details
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+model FractionalToken {
+  id        String   @id @default(cuid())
+
+  // Token Info
+  poolId    String   @unique
+  ftAddress String   @unique
+  ftName    String
+  ftSymbol  String   @unique  // Prevent duplicate symbols
+  assetId   Int
+
+  // Metadata
+  imageUrl  String?
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ftSymbol])
+  @@index([ftAddress])
+  @@index([poolId])
+}
+
+model TradeStatistics {
+  id        String   @id @default(cuid())
+  poolId    String
+  ftAddress String
+
+  // Volume & Price
+  dailyVolume String  @default("0")
+  highPrice   String  @default("0")
+  lowPrice    String  @default("0")
+  lastPrice   String  @default("0")
+
+  // Stats
+  totalTrades Int     @default(0)
+  totalMatches Int    @default(0)
+
+  date      DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([poolId])
+  @@index([ftAddress])
+  @@unique([ftAddress, date])
+}
+
+model License {
+  id        String   @id @default(cuid())
+
+  // Asset & Buyer
+  assetId   Int      // Asset ID from on-chain registry
+  buyer     String   // Buyer wallet address
+  licenseType String @default("NON_EXCLUSIVE") // NON_EXCLUSIVE | EXCLUSIVE | DERIVATIVE
+
+  // License Details
+  price     String   // Price paid in wei (ETH)
+  txHash    String?  // Transaction hash if bought on-chain
+  status    String   @default("ACTIVE") // ACTIVE, REVOKED, EXPIRED
+  uri       String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  expiresAt DateTime? // Optional expiration date
+  updatedAt DateTime @updatedAt
+
+  @@index([buyer])
+  @@index([assetId])
+  @@index([status])
+}

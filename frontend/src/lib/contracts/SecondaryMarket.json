@@ -1,0 +1,31 @@
+[
+  {"type":"constructor","inputs":[],"stateMutability":"nonpayable"},
+  {"type":"function","name":"totalOrders","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint256"}]},
+  {"type":"function","name":"platformFeeBPS","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint256"}]},
+  {"type":"function","name":"feeRecipient","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"address"}]},
+  {"type":"function","name":"createSellOrder","stateMutability":"nonpayable","inputs":[{"name":"poolId","type":"uint256"},{"name":"ftAddress","type":"address"},{"name":"amount","type":"uint256"},{"name":"pricePerToken","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},
+  {"type":"function","name":"createSellOrderWithPermit","stateMutability":"nonpayable","inputs":[{"name":"poolId","type":"uint256"},{"name":"ftAddress","type":"address"},{"name":"amount","type":"uint256"},{"name":"pricePerToken","type":"uint256"},{"name":"deadline","type":"uint256"},{"name":"v","type":"uint8"},{"name":"r","type":"bytes32"},{"name":"s","type":"bytes32"}],"outputs":[{"name":"","type":"uint256"}]},
+  {"type":"function","name":"buyFromOrder","stateMutability":"payable","inputs":[{"name":"orderId","type":"uint256"},{"name":"amount","type":"uint256"}],"outputs":[]},
+  {"type":"function","name":"cancelOrder","stateMutability":"nonpayable","inputs":[{"name":"orderId","type":"uint256"}],"outputs":[]},
+  {"type":"function","name":"getPoolOrders","stateMutability":"view","inputs":[{"name":"poolId","type":"uint256"}],"outputs":[{"name":"","type":"uint256[]"}]},
+  {"type":"function","name":"getSellerOrders","stateMutability":"view","inputs":[{"name":"seller","type":"address"}],"outputs":[{"name":"","type":"uint256[]"}]},
+  {"type":"function","name":"getOrderDetails","stateMutability":"view","inputs":[{"name":"orderId","type":"uint256"}],"outputs":[
+    {"name":"poolId","type":"uint256"},
+    {"name":"ftAddress","type":"address"},
+    {"name":"seller","type":"address"},
+    {"name":"amount","type":"uint256"},
+    {"name":"pricePerToken","type":"uint256"},
+    {"name":"active","type":"bool"},
+    {"name":"createdAt","type":"uint256"}
+  ]},
+  {"type":"function","name":"orders","stateMutability":"view","inputs":[{"name":"","type":"uint256"}],"outputs":[
+    {"name":"orderId","type":"uint256"},
+    {"name":"poolId","type":"uint256"},
+    {"name":"ftAddress","type":"address"},
+    {"name":"seller","type":"address"},
+    {"name":"amount","type":"uint256"},
+    {"name":"pricePerToken","type":"uint256"},
+    {"name":"active","type":"bool"},
+    {"name":"createdAt","type":"uint256"}
+  ]}
+]

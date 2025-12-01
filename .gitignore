@@ -1,0 +1,18 @@
+# Compiler files
+cache/
+out/
+
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+
+# Docs
+docs/
+
+# Dotenv file
+.env
+
+# IPMarket -- Fractional Game
+IPMarket — Fractional Game IP Marketplace (IPFi Track, Story).pdf
+Lixa.txt

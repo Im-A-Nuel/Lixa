@@ -1,0 +1,66 @@
+[
+  {
+    "type": "function",
+    "name": "executeTrade",
+    "inputs": [
+      {
+        "name": "buyOrder",
+        "type": "tuple",
+        "components": [
+          { "name": "orderId", "type": "string" },
+          { "name": "side", "type": "string" },
+          { "name": "poolId", "type": "uint256" },
+          { "name": "ftAddress", "type": "address" },
+          { "name": "amount", "type": "uint256" },
+          { "name": "pricePerToken", "type": "uint256" },
+          { "name": "userAddress", "type": "address" },
+          { "name": "nonce", "type": "uint256" },
+          { "name": "expiresAt", "type": "uint256" }
+        ]
+      },
+      { "name": "buySignature", "type": "bytes" },
+      {
+        "name": "sellOrder",
+        "type": "tuple",
+        "components": [
+          { "name": "orderId", "type": "string" },
+          { "name": "side", "type": "string" },
+          { "name": "poolId", "type": "uint256" },
+          { "name": "ftAddress", "type": "address" },
+          { "name": "amount", "type": "uint256" },
+          { "name": "pricePerToken", "type": "uint256" },
+          { "name": "userAddress", "type": "address" },
+          { "name": "nonce", "type": "uint256" },
+          { "name": "expiresAt", "type": "uint256" }
+        ]
+      },
+      { "name": "sellSignature", "type": "bytes" },
+      { "name": "amount", "type": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "getRemainingAmount",
+    "inputs": [
+      {
+        "name": "order",
+        "type": "tuple",
+        "components": [
+          { "name": "orderId", "type": "string" },
+          { "name": "side", "type": "string" },
+          { "name": "poolId", "type": "uint256" },
+          { "name": "ftAddress", "type": "address" },
+          { "name": "amount", "type": "uint256" },
+          { "name": "pricePerToken", "type": "uint256" },
+          { "name": "userAddress", "type": "address" },
+          { "name": "nonce", "type": "uint256" },
+          { "name": "expiresAt", "type": "uint256" }
+        ]
+      }
+    ],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "view"
+  }
+]

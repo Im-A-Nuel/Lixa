@@ -1,0 +1,52 @@
+[
+  {
+    "type": "function",
+    "name": "totalOffers",
+    "stateMutability": "view",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256" }]
+  },
+  {
+    "type": "function",
+    "name": "offers",
+    "stateMutability": "view",
+    "inputs": [{ "name": "", "type": "uint256" }],
+    "outputs": [
+      { "name": "offerId", "type": "uint256" },
+      { "name": "assetId", "type": "uint256" },
+      { "name": "seller", "type": "address" },
+      { "name": "price", "type": "uint256" },
+      { "name": "royaltyBPS", "type": "uint16" },
+      { "name": "ltype", "type": "uint8" },
+      { "name": "preset", "type": "uint8" },
+      { "name": "maxSupply", "type": "uint256" },
+      { "name": "sold", "type": "uint256" },
+      { "name": "duration", "type": "uint256" },
+      { "name": "active", "type": "bool" },
+      { "name": "uri", "type": "string" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "createOffer",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "assetId", "type": "uint256" },
+      { "name": "price", "type": "uint256" },
+      { "name": "royaltyBPS", "type": "uint16" },
+      { "name": "ltype", "type": "uint8" },
+      { "name": "preset", "type": "uint8" },
+      { "name": "maxSupply", "type": "uint256" },
+      { "name": "duration", "type": "uint256" },
+      { "name": "uri", "type": "string" }
+    ],
+    "outputs": [{ "name": "", "type": "uint256" }]
+  },
+  {
+    "type": "function",
+    "name": "buyLicense",
+    "stateMutability": "payable",
+    "inputs": [{ "name": "offerId", "type": "uint256" }],
+    "outputs": [{ "name": "", "type": "uint256" }]
+  }
+]

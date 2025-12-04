@@ -16,7 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Lixa - License Exchange for Game Assets",
-  description: "License. Fraction. Earn. - Marketplace for game assets with on-chain licensing and programmable royalties.",
+  description:
+    "License. Fraction. Earn. - Marketplace for game assets with on-chain licensing and programmable royalties.",
 };
 
 export default function RootLayout({
@@ -25,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-950 text-white`}
       >
@@ -34,7 +35,13 @@ export default function RootLayout({
           type="module"
           strategy="beforeInteractive"
         />
-        <Providers>{children}</Providers>
+
+        {/* Pastikan Providers membungkus Header agar ConnectButton punya konteks */}
+        <Providers>
+          {/* Beri padding-top supaya konten tidak tertutup floating header.
+              Sesuaikan nilai pt-20 / md:pt-28 jika tinggi headermu berbeda */}
+          <main className="pt-20 md:pt-28">{children}</main>
+        </Providers>
       </body>
     </html>
   );

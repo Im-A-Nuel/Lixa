@@ -24,3 +24,48 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Remove glow/shadow from RainbowKit ConnectButton */
+[data-rk] button,
+[data-rk] button * {
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+}
+
+[data-rk] button:hover,
+[data-rk] button:hover * {
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+}
+
+[data-rk] button:focus,
+[data-rk] button:focus * {
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  outline: 2px solid rgba(255, 255, 255, 0.2);
+  outline-offset: 2px;
+}
+
+/* Remove any glowing effects from RainbowKit modal/dropdown */
+[data-rk] div {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+@keyframes floatSlow {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+.hero-gif-float {
+  animation: floatSlow 8s ease-in-out infinite;
+}

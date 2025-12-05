@@ -370,8 +370,8 @@ export default function TokenDetailPage() {
       .filter((o) => ["OPEN", "PARTIALLY_FILLED"].includes(o.status))
       .reduce((acc, o) => {
         const remaining = BigInt(o.amount) - BigInt(o.filledAmount || "0");
-        return acc + (remaining > 0n ? remaining : 0n);
-      }, 0n);
+        return acc + (remaining > BigInt(0) ? remaining : BigInt(0));
+      }, BigInt(0));
   }, [sellOrders]);
 
   const formatAmountShort = (val?: string | bigint) => {
@@ -442,7 +442,7 @@ export default function TokenDetailPage() {
     const amountWei = parseUnits(orderAmount || "0", 18);
     const priceWei = parseEther(orderPrice || "0");
 
-    if (amountWei === 0n || priceWei === 0n) {
+    if (amountWei === BigInt(0) || priceWei === BigInt(0)) {
       setOrderMessage("Amount and price must be greater than 0");
       return;
     }

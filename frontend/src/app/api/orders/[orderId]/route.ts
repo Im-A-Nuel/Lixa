@@ -6,9 +6,9 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * GET /api/orders/[orderId] - Get specific order
  */
-export async function GET(req: NextRequest, { params }: { params: { orderId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
   try {
-    const { orderId } = params;
+    const { orderId } = await params;
 
     // TODO: Query database untuk fetch order
     // const order = await db.orders.findOne({ orderId });
@@ -27,9 +27,9 @@ export async function GET(req: NextRequest, { params }: { params: { orderId: str
 /**
  * DELETE /api/orders/[orderId] - Cancel order
  */
-export async function DELETE(req: NextRequest, { params }: { params: { orderId: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
   try {
-    const { orderId } = params;
+    const { orderId } = await params;
 
     // TODO: Implement order cancellation
     // 1. Verify order exists

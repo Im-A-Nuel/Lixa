@@ -105,8 +105,8 @@ export function validateOrder(order: OffchainOrder): { valid: boolean; errors: s
 
   if (!order.orderId) errors.push("Order ID harus diisi");
   if (!order.ftAddress) errors.push("FT Address harus diisi");
-  if (order.amount <= 0n) errors.push("Amount harus lebih dari 0");
-  if (order.pricePerToken <= 0n) errors.push("Price per token harus lebih dari 0");
+  if (order.amount <= BigInt(0)) errors.push("Amount harus lebih dari 0");
+  if (order.pricePerToken <= BigInt(0)) errors.push("Price per token harus lebih dari 0");
   if (order.expiresAt <= Date.now() / 1000) errors.push("Order sudah expired");
   if (order.nonce < 0) errors.push("Nonce invalid");
 

@@ -2,13 +2,14 @@
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, usePublicClient } from "wagmi";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { getContractAddress } from "@/lib/contracts/addresses";
 import AssetRegistryABI from "@/lib/contracts/AssetRegistry.json";
 import LicenseManagerABI from "@/lib/contracts/LicenseManager.json";
 import FractionalizerABI from "@/lib/contracts/Fractionalizer.json";
 import { parseEther, parseUnits } from "viem";
 import { MarketplaceNav } from "@/components/MarketplaceNav";
+import { ErrorMessage } from "@/components/ErrorMessage";
 
 const ERC721_APPROVE_ABI = [
   {
@@ -33,6 +34,9 @@ const ERC721_APPROVE_ABI = [
 export default function CreatePage() {
   const { isConnected, chainId } = useAccount();
   const [file, setFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState<string>("");
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [fileType, setFileType] = useState<"image" | "3d" | "audio" | "other" | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [royaltyBPS, setRoyaltyBPS] = useState("500"); // 5%
@@ -94,6 +98,15 @@ export default function CreatePage() {
   });
 
   const { writeContractAsync: writeFracAsync } = useWriteContract();
+
+  // Cleanup object URL on unmount or when file changes
+  useEffect(() => {
+    return () => {
+      if (filePreview && fileType === '3d') {
+        URL.revokeObjectURL(filePreview);
+      }
+    };
+  }, [filePreview, fileType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -317,19 +330,177 @@ export default function CreatePage() {
         ) : (
           <>
             <form onSubmit={handleSubmit} className="space-y-6 bg-gray-900 border border-gray-800 rounded-xl p-6 mb-10">
-              <h2 className="text-xl font-semibold mb-2">Step 1 — Register Asset (on-chain)</h2>
+              <div className="flex items-center gap-3 pb-4 border-b border-gray-800">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-purple-700 text-white font-bold text-lg shadow-lg">
+                  1
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-white">Register Asset</h2>
+                  <p className="text-sm text-gray-400">Upload and mint your asset on-chain</p>
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Asset File
                 </label>
-                <input
-                  type="file"
-                  accept="image/*,video/*,model/*,.glb,.gltf,.fbx,.png,.jpg,.jpeg,.gif"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  required
-                />
-                <p className="text-sm text-gray-500 mt-1">
+                <div className="relative">
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept="image/*,audio/*,.glb,.gltf,.fbx,.obj"
+                    onChange={(e) => {
+                      const selectedFile = e.target.files?.[0] || null;
+                      setFile(selectedFile);
+                      setFileName(selectedFile?.name || "");
+
+                      if (selectedFile) {
+                        // Detect file type
+                        const fileExt = selectedFile.name.split('.').pop()?.toLowerCase();
+                        const mimeType = selectedFile.type;
+
+                        if (mimeType.startsWith('image/')) {
+                          setFileType('image');
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setFilePreview(reader.result as string);
+                          };
+                          reader.readAsDataURL(selectedFile);
+                        } else if (mimeType.startsWith('audio/')) {
+                          setFileType('audio');
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setFilePreview(reader.result as string);
+                          };
+                          reader.readAsDataURL(selectedFile);
+                        } else if (fileExt && ['glb', 'gltf', 'fbx', 'obj'].includes(fileExt)) {
+                          setFileType('3d');
+                          // For 3D models, create object URL instead of data URL
+                          const objectUrl = URL.createObjectURL(selectedFile);
+                          setFilePreview(objectUrl);
+                        } else {
+                          setFileType('other');
+                          setFilePreview(null);
+                        }
+                      } else {
+                        setFilePreview(null);
+                        setFileType(null);
+                      }
+                    }}
+                    className="hidden"
+                    required
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gray-800 border-2 border-dashed border-gray-600 hover:border-purple-500 rounded-lg cursor-pointer transition-all hover:bg-gray-750"
+                  >
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span className="text-gray-300">
+                      {fileName ? fileName : "Click to choose file"}
+                    </span>
+                  </label>
+                </div>
+
+                {/* File Preview */}
+                {file && filePreview && (
+                  <div className="mt-4 p-4 bg-gray-800 border border-gray-700 rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-medium text-gray-300">Preview:</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Cleanup object URL for 3D models
+                          if (filePreview && fileType === '3d') {
+                            URL.revokeObjectURL(filePreview);
+                          }
+                          setFile(null);
+                          setFileName("");
+                          setFilePreview(null);
+                          setFileType(null);
+                        }}
+                        className="text-xs text-red-400 hover:text-red-300 transition"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    {fileType === 'image' && (
+                      <div className="flex justify-center">
+                        <img
+                          src={filePreview}
+                          alt="Preview"
+                          className="max-w-full h-auto max-h-80 rounded-lg shadow-lg"
+                        />
+                      </div>
+                    )}
+
+                    {fileType === 'audio' && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 text-gray-400">
+                          <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                          </svg>
+                          <div>
+                            <p className="font-medium text-gray-300">{fileName}</p>
+                            <p className="text-sm">Audio File</p>
+                          </div>
+                        </div>
+                        <audio
+                          controls
+                          src={filePreview}
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+
+                    {fileType === '3d' && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 text-gray-400 bg-gray-900 p-3 rounded-lg">
+                          <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          </svg>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-300">{fileName}</p>
+                            <p className="text-sm">3D Model</p>
+                            <p className="text-xs mt-1">
+                              Size: {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+                        <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+                          <model-viewer
+                            src={filePreview}
+                            alt="3D Model Preview"
+                            auto-rotate
+                            camera-controls
+                            style={{
+                              width: '100%',
+                              height: '400px',
+                              background: 'linear-gradient(to bottom right, rgba(88, 28, 135, 0.1), rgba(219, 39, 119, 0.1))'
+                            }}
+                            class="w-full"
+                          >
+                            <div slot="progress-bar" style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: '100%',
+                              color: '#9CA3AF'
+                            }}>
+                              <p>Loading 3D Model...</p>
+                            </div>
+                          </model-viewer>
+                        </div>
+                        <p className="text-xs text-gray-500 text-center">
+                          🖱️ Drag to rotate • Scroll to zoom • Right-click to pan
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-sm text-gray-500 mt-2">
                   File akan di-upload ke IPFS (Pinata) lalu metadata otomatis dibuat.
                 </p>
               </div>
@@ -381,20 +552,41 @@ export default function CreatePage() {
               </div>
 
               {uploadError && (
-                <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 text-red-400">
-                  Upload error: {uploadError}
-                </div>
+                <ErrorMessage error={uploadError} onDismiss={() => setUploadError(null)} />
               )}
 
               {error && (
-                <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 text-red-400">
-                  Error: {error.message}
-                </div>
+                <ErrorMessage error={error} />
               )}
 
-              {isSuccess && (
-                <div className="bg-green-900/20 border border-green-700 rounded-lg p-4 text-green-400">
-                  Asset registered successfully! TX: {hash}
+              {isSuccess && hash && (
+                <div className="bg-green-900/30 border border-green-600 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-green-400 mb-1">Asset registered successfully!</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm text-gray-400">Transaction:</p>
+                        <code className="text-xs text-green-300 bg-green-950/50 px-2 py-1 rounded break-all">
+                          {hash.slice(0, 10)}...{hash.slice(-8)}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(hash);
+                          }}
+                          className="text-xs text-green-400 hover:text-green-300 underline"
+                          title="Copy full hash"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -414,7 +606,15 @@ export default function CreatePage() {
             </form>
 
             <form className="space-y-4 bg-gray-900 border border-gray-800 rounded-xl p-6 mb-10">
-              <h2 className="text-xl font-semibold mb-2">Step 2 — Fractionalize (wajib sebelum jual lisensi)</h2>
+              <div className="flex items-center gap-3 pb-4 border-b border-gray-800">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-pink-600 to-pink-700 text-white font-bold text-lg shadow-lg">
+                  2
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-white">Fractionalize Asset</h2>
+                  <p className="text-sm text-gray-400">Create fractional tokens (required before selling licenses)</p>
+                </div>
+              </div>
               <p className="text-sm text-gray-400">Masukkan Asset ID yang sudah didaftarkan, lalu buat fractional token.</p>
 
               <div className="grid md:grid-cols-2 gap-4">
@@ -498,114 +698,162 @@ export default function CreatePage() {
               </div>
 
               {actionHash && (
-                <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3 text-blue-200 text-sm break-all">
-                  TX: {actionHash}
+                <div className="bg-blue-900/30 border border-blue-600 rounded-xl p-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm text-blue-300 font-medium">Transaction:</p>
+                    <code className="text-xs text-blue-200 bg-blue-950/50 px-2 py-1 rounded break-all">
+                      {actionHash.slice(0, 10)}...{actionHash.slice(-8)}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(actionHash);
+                      }}
+                      className="text-xs text-blue-400 hover:text-blue-300 underline"
+                      title="Copy full hash"
+                    >
+                      Copy
+                    </button>
+                  </div>
                 </div>
               )}
               {actionError && (
-                <div className="bg-red-900/20 border border-red-700 rounded-lg p-3 text-red-300 text-sm">
-                  {actionError}
-                </div>
+                <ErrorMessage error={actionError} onDismiss={() => setActionError(undefined)} />
               )}
               {status === "done" && (
-                <div className="bg-green-900/20 border border-green-700 rounded-lg p-3 text-green-300 text-sm">
-                  Fractionalize selesai. Lanjut ke Step 3 untuk jual lisensi.
+                <div className="bg-green-900/30 border border-green-600 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-green-400">Fractionalization complete!</p>
+                      <p className="text-sm text-gray-400 mt-1">Proceed to Step 3 to publish license offer.</p>
+                    </div>
+                  </div>
                 </div>
               )}
             </form>
 
             <form onSubmit={handleCreateOffer} className="space-y-4 bg-gray-900 border border-gray-800 rounded-xl p-6">
-              <h2 className="text-xl font-semibold mb-2">Step 3 — Publish License Offer</h2>
+              <div className="flex items-center gap-3 pb-4 border-b border-gray-800">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 text-white font-bold text-lg shadow-lg">
+                  3
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-white">Publish License Offer</h2>
+                  <p className="text-sm text-gray-400">Create license offer for your asset</p>
+                </div>
+              </div>
               <p className="text-sm text-gray-400">
                 Setelah fractionalize, masukkan Asset ID lalu publish lisensi langsung dari sini.
               </p>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Asset ID</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Asset ID</label>
                   <input
                     type="number"
                     value={assetIdForOffer}
                     onChange={(e) => setAssetIdForOffer(e.target.value)}
-                    placeholder="Mis. 1"
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                    placeholder="e.g., 1"
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">Asset ID from Step 1</p>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Harga lisensi (ETH)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">License Price (ETH)</label>
                   <input
                     type="text"
                     value={priceEth}
                     onChange={(e) => setPriceEth(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                    placeholder="0.1"
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Price per license in ETH</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Royalty BPS</label>
+                  <input
+                    type="number"
+                    value={royaltyOfferBps}
+                    onChange={(e) => setRoyaltyOfferBps(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Basis points (500 = 5%)</p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">License Type</label>
+                    <select
+                      value={ltype}
+                      onChange={(e) => setLtype(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                    >
+                      <option value="0">Commercial Use</option>
+                      <option value="1">Marketing/Promotional</option>
+                      <option value="2">Educational/Indie</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Choose the license usage type</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">License Preset</label>
+                    <select
+                      value={preset}
+                      onChange={(e) => setPreset(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                    >
+                      <option value="0">Standard</option>
+                      <option value="1">Premium</option>
+                      <option value="2">Custom</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Select license tier/preset</p>
+                  </div>
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Royalty BPS</label>
-                  <input
-                    type="number"
-                    value={royaltyOfferBps}
-                    onChange={(e) => setRoyaltyOfferBps(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Basis points (500 = 5%)</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">Type (0/1/2)</label>
-                    <input
-                      type="number"
-                      value={ltype}
-                      onChange={(e) => setLtype(e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">Preset (0/1/2)</label>
-                    <input
-                      type="number"
-                      value={preset}
-                      onChange={(e) => setPreset(e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Max Supply (0 = unlimited)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Max Supply</label>
                   <input
                     type="number"
                     value={maxSupply}
                     onChange={(e) => setMaxSupply(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                    placeholder="0"
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   />
+                  <p className="text-xs text-gray-500 mt-1">0 = unlimited supply</p>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Duration (seconds, 0 = permanent)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Duration (seconds)</label>
                   <input
                     type="number"
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                    placeholder="0"
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   />
+                  <p className="text-xs text-gray-500 mt-1">0 = permanent license</p>
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Metadata URI</label>
-                  <input
-                    type="text"
-                    value={uriOffer}
-                    onChange={(e) => setUriOffer(e.target.value)}
-                    placeholder="ipfs://..."
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Terisi otomatis setelah upload asset.</p>
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Metadata URI</label>
+                <input
+                  type="text"
+                  value={uriOffer}
+                  onChange={(e) => setUriOffer(e.target.value)}
+                  placeholder="ipfs://..."
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                />
+                <p className="text-xs text-gray-500 mt-1">Terisi otomatis setelah upload asset.</p>
               </div>
 
               {offerMessage && (
@@ -615,14 +863,37 @@ export default function CreatePage() {
               )}
 
               {offerError && (
-                <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 text-red-400">
-                  Offer error: {offerError.message}
-                </div>
+                <ErrorMessage error={offerError} />
               )}
 
-              {offerSuccess && (
-                <div className="bg-green-900/20 border border-green-700 rounded-lg p-4 text-green-400">
-                  License offer created! TX: {offerHash}
+              {offerSuccess && offerHash && (
+                <div className="bg-green-900/30 border border-green-600 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-green-400 mb-1">License offer created successfully!</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm text-gray-400">Transaction:</p>
+                        <code className="text-xs text-green-300 bg-green-950/50 px-2 py-1 rounded break-all">
+                          {offerHash.slice(0, 10)}...{offerHash.slice(-8)}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(offerHash);
+                          }}
+                          className="text-xs text-green-400 hover:text-green-300 underline"
+                          title="Copy full hash"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 

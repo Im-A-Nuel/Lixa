@@ -7,13 +7,7 @@ const nextConfig: NextConfig = {
     config.externals.push("pino-pretty", "lokijs", "encoding");
     return config;
   },
-  // Ensure Alchemy AA packages are transpiled for Next bundler
-  transpilePackages: [
-    "@alchemy/aa-alchemy",
-    "@alchemy/aa-core",
-    "@alchemy/aa-accounts",
-    "@alchemy/aa-signers",
-  ],
+  serverExternalPackages: ["pino", "thread-stream"],
   async headers() {
     return [
       {

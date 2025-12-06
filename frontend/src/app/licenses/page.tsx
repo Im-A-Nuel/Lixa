@@ -19,7 +19,7 @@ export default function LicensesPage() {
   });
 
   const offerQueries = useMemo(() => {
-    if (!licenseManager || !totalOffers || totalOffers === 0n) return [];
+    if (!licenseManager || !totalOffers || totalOffers === BigInt(0)) return [];
     return Array.from({ length: Number(totalOffers) }, (_, idx) => ({
       address: licenseManager,
       abi: LicenseManagerABI,

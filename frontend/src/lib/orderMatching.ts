@@ -188,9 +188,15 @@ export function findBestMatch(
   },
   sellOrders: Array<{
     id: string;
+    userAddress: string;
+    side: string;
+    poolId: string;
+    ftAddress: string;
     pricePerToken: string;
     amount: string;
     filledAmount: string;
+    status: string;
+    expiresAt: Date;
     createdAt: Date;
   }>
 ): (typeof sellOrders)[0] | null {

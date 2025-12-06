@@ -204,11 +204,12 @@ export async function POST(request: NextRequest) {
       });
 
       // Update current order for next iteration
-      currentOrder = await prisma.order.findUnique({
+      const updatedOrder = await prisma.order.findUnique({
         where: { id: orderId },
       });
 
-      if (!currentOrder) break;
+      if (!updatedOrder) break;
+      currentOrder = updatedOrder;
     }
 
     return NextResponse.json({

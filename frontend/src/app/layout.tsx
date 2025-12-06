@@ -40,7 +40,7 @@ export default function RootLayout({
         <Providers>
           {/* Beri padding-top supaya konten tidak tertutup floating header.
               Sesuaikan nilai pt-20 / md:pt-28 jika tinggi headermu berbeda */}
-          <main className="pt-20 md:pt-28">{children}</main>
+          <main className="pt-20 md:pt-0">{children}</main>
         </Providers>
       </body>
     </html>

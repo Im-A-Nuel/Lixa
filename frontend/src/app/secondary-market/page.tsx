@@ -22,7 +22,7 @@ export default function SecondaryMarketPage() {
   });
 
   const poolQueries = useMemo(() => {
-    if (!fractionalizerAddress || !totalPools || totalPools === 0n) return [];
+    if (!fractionalizerAddress || !totalPools || totalPools === BigInt(0)) return [];
     return Array.from({ length: Number(totalPools) }, (_, idx) => ({
       address: fractionalizerAddress,
       abi: FractionalizerABI,

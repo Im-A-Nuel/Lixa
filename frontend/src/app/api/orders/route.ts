@@ -7,13 +7,26 @@ const orderBook = new Map<string, OffchainOrder>();
 const userOrders = new Map<Address, string[]>();
 
 /**
+ * Serialize order untuk JSON response (convert BigInt to string)
+ */
+function serializeOrder(order: OffchainOrder) {
+  return {
+    ...order,
+    poolId: order.poolId.toString(),
+    amount: order.amount.toString(),
+    pricePerToken: order.pricePerToken.toString(),
+    filledAmount: order.filledAmount.toString(),
+  };
+}
+
+/**
  * Validate order signature menggunakan EIP-712
  */
-function validateOrderSignature(order: OffchainOrder): boolean {
+async function validateOrderSignature(order: OffchainOrder): Promise<boolean> {
   if (!order.signature) return false;
 
   try {
-    const valid = verifyTypedData({
+    const valid = await verifyTypedData({
       address: order.userAddress,
       domain: getOrderDomain(order.chainId),
       types: ORDER_TYPES,
@@ -82,7 +95,7 @@ export async function GET(req: NextRequest) {
     const active = filtered.filter((o) => o.expiresAt > now && o.status === "OPEN");
 
     return NextResponse.json({
-      orders: active,
+      orders: active.map(serializeOrder),
       total: active.length,
     });
   } catch (err) {
@@ -97,7 +110,16 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const order: OffchainOrder = await req.json();
+    const rawOrder = await req.json();
+
+    // Convert string values to BigInt
+    const order: OffchainOrder = {
+      ...rawOrder,
+      poolId: BigInt(rawOrder.poolId),
+      amount: BigInt(rawOrder.amount),
+      pricePerToken: BigInt(rawOrder.pricePerToken),
+      filledAmount: BigInt(rawOrder.filledAmount),
+    };
 
     // Validate required fields
     if (!order.orderId || !order.signature) {
@@ -110,7 +132,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify EIP-712 signature
-    if (!validateOrderSignature(order)) {
+    if (!(await validateOrderSignature(order))) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
@@ -132,7 +154,7 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Orders API] Order created: ${order.orderId} (${order.side})`);
 
-    return NextResponse.json(order, { status: 201 });
+    return NextResponse.json(serializeOrder(order), { status: 201 });
   } catch (err) {
     console.error("[Orders API] POST failed:", err);
     return NextResponse.json(

@@ -64,7 +64,15 @@ export function useOffchainOrders(): UseOffchainOrdersReturn {
       if (!res.ok) throw new Error("Failed to fetch orders");
 
       const data = await res.json();
-      setOrders(data.orders || []);
+      // Convert string values back to BigInt
+      const orders = (data.orders || []).map((order: any) => ({
+        ...order,
+        poolId: BigInt(order.poolId),
+        amount: BigInt(order.amount),
+        pricePerToken: BigInt(order.pricePerToken),
+        filledAmount: BigInt(order.filledAmount),
+      }));
+      setOrders(orders);
     } catch (err) {
       console.error("[Orders] Fetch failed:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch orders");
@@ -95,7 +103,7 @@ export function useOffchainOrders(): UseOffchainOrdersReturn {
           createdAt: Math.floor(Date.now() / 1000),
           expiresAt,
           status: "OPEN",
-          filledAmount: 0n,
+          filledAmount: BigInt(0),
           nonce,
         };
 
@@ -109,11 +117,13 @@ export function useOffchainOrders(): UseOffchainOrdersReturn {
 
         order.signature = signature;
 
-        // Submit ke backend
+        // Submit ke backend (convert BigInt to string for JSON)
         const res = await fetch("/api/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(order),
+          body: JSON.stringify(order, (key, value) =>
+            typeof value === "bigint" ? value.toString() : value
+          ),
         });
 
         if (!res.ok) {
@@ -122,10 +132,18 @@ export function useOffchainOrders(): UseOffchainOrdersReturn {
         }
 
         const createdOrder = await res.json();
-        setOrders((prev) => [...prev, createdOrder]);
+        // Convert string values back to BigInt
+        const deserializedOrder = {
+          ...createdOrder,
+          poolId: BigInt(createdOrder.poolId),
+          amount: BigInt(createdOrder.amount),
+          pricePerToken: BigInt(createdOrder.pricePerToken),
+          filledAmount: BigInt(createdOrder.filledAmount),
+        };
+        setOrders((prev) => [...prev, deserializedOrder]);
         setSuccess("Bid order created successfully");
 
-        return createdOrder;
+        return deserializedOrder;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to create bid";
         setError(msg);
@@ -161,7 +179,7 @@ export function useOffchainOrders(): UseOffchainOrdersReturn {
           createdAt: Math.floor(Date.now() / 1000),
           expiresAt,
           status: "OPEN",
-          filledAmount: 0n,
+          filledAmount: BigInt(0),
           nonce,
         };
 
@@ -175,11 +193,13 @@ export function useOffchainOrders(): UseOffchainOrdersReturn {
 
         order.signature = signature;
 
-        // Submit ke backend
+        // Submit ke backend (convert BigInt to string for JSON)
         const res = await fetch("/api/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(order),
+          body: JSON.stringify(order, (key, value) =>
+            typeof value === "bigint" ? value.toString() : value
+          ),
         });
 
         if (!res.ok) {
@@ -188,10 +208,18 @@ export function useOffchainOrders(): UseOffchainOrdersReturn {
         }
 
         const createdOrder = await res.json();
-        setOrders((prev) => [...prev, createdOrder]);
+        // Convert string values back to BigInt
+        const deserializedOrder = {
+          ...createdOrder,
+          poolId: BigInt(createdOrder.poolId),
+          amount: BigInt(createdOrder.amount),
+          pricePerToken: BigInt(createdOrder.pricePerToken),
+          filledAmount: BigInt(createdOrder.filledAmount),
+        };
+        setOrders((prev) => [...prev, deserializedOrder]);
         setSuccess("Ask order created successfully");
 
-        return createdOrder;
+        return deserializedOrder;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to create ask";
         setError(msg);

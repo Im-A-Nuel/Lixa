@@ -68,4 +68,34 @@ body {
 }
 .hero-gif-float {
   animation: floatSlow 8s ease-in-out infinite;
+
+/* Custom styling for Connect Wallet button in navbar */
+.connect-wallet-btn {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Only override background and border - keep everything else default */
+.connect-wallet-btn button {
+  background-color: #1a1a1e !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.connect-wallet-btn button:hover {
+  background-color: #252529 !important;
+}
+
+/* Connect Wallet button (before connected) - Blue */
+.connect-wallet-btn button[data-testid="rk-connect-button"] {
+  background-color: #3b82f6 !important;
+  border: none !important;
+}
+
+.connect-wallet-btn button[data-testid="rk-connect-button"]:hover {
+  background-color: #2563eb !important;
+
+}
 }

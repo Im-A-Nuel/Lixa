@@ -36,11 +36,14 @@ export default function RootLayout({
           strategy="beforeInteractive"
         />
 
+        {/* Global animated background with blur */}
+        <div className="global-bg" aria-hidden="true" />
+
         {/* Pastikan Providers membungkus Header agar ConnectButton punya konteks */}
         <Providers>
           {/* Beri padding-top supaya konten tidak tertutup floating header.
               Sesuaikan nilai pt-20 / md:pt-28 jika tinggi headermu berbeda */}
-          <main className="pt-20 md:pt-0">{children}</main>
+          <main className="pt-20 md:pt-0 relative z-10">{children}</main>
         </Providers>
       </body>
     </html>

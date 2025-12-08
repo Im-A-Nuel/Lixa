@@ -21,7 +21,7 @@ export default function OrderBookExamplePage() {
   const { data: stats } = useOrderStats({ poolId: POOL_ID, ftAddress: FT_ADDRESS });
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen py-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">

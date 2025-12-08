@@ -9,6 +9,7 @@ import LicenseManagerABI from "@/lib/contracts/LicenseManager.json";
 import FractionalizerABI from "@/lib/contracts/Fractionalizer.json";
 import { parseEther, parseUnits } from "viem";
 import { MarketplaceNav } from "@/components/MarketplaceNav";
+import { FileUpload } from "@/components/FileUpload";
 
 const ERC721_APPROVE_ABI = [
   {
@@ -30,6 +31,21 @@ const ERC721_APPROVE_ABI = [
   },
 ];
 
+// License type options
+const LICENSE_TYPES = [
+  { value: "0", label: "Non-Exclusive", description: "Multiple buyers can purchase this license" },
+  { value: "1", label: "Exclusive", description: "Only one buyer can hold this license at a time" },
+  { value: "2", label: "Derivative", description: "Allows creating derivative works" },
+];
+
+// License preset options
+const LICENSE_PRESETS = [
+  { value: "0", label: "Custom", description: "Define your own terms" },
+  { value: "1", label: "In-Game Commercial", description: "Full commercial usage for games" },
+  { value: "2", label: "Trailer/Marketing", description: "For promotional materials only" },
+  { value: "3", label: "Edu/Indie", description: "Discounted for students & indie devs" },
+];
+
 export default function CreatePage() {
   const { isConnected, chainId } = useAccount();
   const [file, setFile] = useState<File | null>(null);
@@ -39,11 +55,15 @@ export default function CreatePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // Active step tracking
+  const [activeStep, setActiveStep] = useState(1);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+
   const [assetIdForOffer, setAssetIdForOffer] = useState("");
   const [priceEth, setPriceEth] = useState("0.1");
   const [royaltyOfferBps, setRoyaltyOfferBps] = useState("500"); // 5%
   const [ltype, setLtype] = useState("0");
-  const [preset, setPreset] = useState("0");
+  const [preset, setPreset] = useState("1");
   const [maxSupply, setMaxSupply] = useState("0"); // 0 = unlimited
   const [duration, setDuration] = useState("0"); // 0 = permanent
   const [uriOffer, setUriOffer] = useState("");
@@ -144,6 +164,29 @@ export default function CreatePage() {
       setUploading(false);
     }
   };
+
+  // Mark step 1 complete when asset is registered
+  useMemo(() => {
+    if (isSuccess && !completedSteps.includes(1)) {
+      setCompletedSteps(prev => [...prev, 1]);
+      setActiveStep(2);
+    }
+  }, [isSuccess, completedSteps]);
+
+  // Mark step 2 complete when fractionalized
+  useMemo(() => {
+    if (status === "done" && !completedSteps.includes(2)) {
+      setCompletedSteps(prev => [...prev, 2]);
+      setActiveStep(3);
+    }
+  }, [status, completedSteps]);
+
+  // Mark step 3 complete when license offer created
+  useMemo(() => {
+    if (offerSuccess && !completedSteps.includes(3)) {
+      setCompletedSteps(prev => [...prev, 3]);
+    }
+  }, [offerSuccess, completedSteps]);
 
   const canFractionalize = useMemo(() => {
     return Boolean(
@@ -273,7 +316,7 @@ export default function CreatePage() {
     e.preventDefault();
     if (!licenseManager) return;
     if (!assetIdForOffer || Number(assetIdForOffer) <= 0) {
-      setOfferMessage("Isi Asset ID hasil registrasi.");
+      setOfferMessage("Please enter a valid Asset ID.");
       return;
     }
     try {
@@ -298,342 +341,498 @@ export default function CreatePage() {
     }
   };
 
+  const StepIndicator = ({ step, title, isActive, isCompleted }: { step: number; title: string; isActive: boolean; isCompleted: boolean }) => (
+    <div
+      className={`flex items-center gap-3 cursor-pointer transition-all ${isActive ? "opacity-100" : "opacity-60 hover:opacity-80"}`}
+      onClick={() => setActiveStep(step)}
+    >
+      <div className={`
+        w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all
+        ${isCompleted
+          ? "bg-green-500 text-white"
+          : isActive
+            ? "bg-purple-600 text-white ring-4 ring-purple-600/30"
+            : "bg-gray-800 text-gray-400 border border-gray-700"
+        }
+      `}>
+        {isCompleted ? (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        ) : step}
+      </div>
+      <span className={`font-medium ${isActive ? "text-white" : "text-gray-400"}`}>{title}</span>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen text-white bg-[#0a0a0f]">
       <MarketplaceNav />
 
-      <main className="max-w-2xl mx-auto px-6 py-12">
-        <h1 className="text-3xl font-bold mb-8">Register New Asset</h1>
+      <main className="max-w-4xl mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="mb-10">
+          <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+            Create & List Asset
+          </h1>
+          <p className="text-gray-400 text-lg">
+            Register your game asset, fractionalize it, and create license offers.
+          </p>
+        </div>
 
         {!isConnected ? (
-          <div className="text-center py-12">
-            <p className="text-gray-400 mb-4">Connect your wallet to register assets</p>
+          <div className="text-center py-16 bg-gray-900/50 border border-gray-800 rounded-2xl">
+            <div className="w-20 h-20 bg-purple-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold mb-2">Connect Your Wallet</h2>
+            <p className="text-gray-400 mb-6">Connect your wallet to start creating and listing assets</p>
             <ConnectButton />
           </div>
         ) : !registryAddress ? (
-          <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4 text-yellow-400">
-            Please switch to a supported network (Anvil local or Sepolia)
+          <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-xl p-6 text-center">
+            <svg className="w-12 h-12 text-yellow-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 className="text-lg font-semibold text-yellow-400 mb-2">Unsupported Network</h3>
+            <p className="text-yellow-400/80">Please switch to Story Protocol Testnet (Chain ID: 1315)</p>
           </div>
         ) : (
           <>
-            <form onSubmit={handleSubmit} className="space-y-6 bg-gray-900 border border-gray-800 rounded-xl p-6 mb-10">
-              <h2 className="text-xl font-semibold mb-2">Step 1 — Register Asset (on-chain)</h2>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Asset File
-                </label>
-                <input
-                  type="file"
-                  accept="image/*,video/*,model/*,.glb,.gltf,.fbx,.png,.jpg,.jpeg,.gif"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  required
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  File akan di-upload ke IPFS (Pinata) lalu metadata otomatis dibuat.
-                </p>
-              </div>
+            {/* Step Indicators */}
+            <div className="flex items-center justify-between mb-10 bg-gray-900/50 border border-gray-800 rounded-xl p-4">
+              <StepIndicator step={1} title="Register Asset" isActive={activeStep === 1} isCompleted={completedSteps.includes(1)} />
+              <div className="flex-1 h-px bg-gray-800 mx-4" />
+              <StepIndicator step={2} title="Fractionalize" isActive={activeStep === 2} isCompleted={completedSteps.includes(2)} />
+              <div className="flex-1 h-px bg-gray-800 mx-4" />
+              <StepIndicator step={3} title="Create License" isActive={activeStep === 3} isCompleted={completedSteps.includes(3)} />
+            </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Nama Asset
+            {/* Step 1: Register Asset */}
+            <div className={`transition-all duration-300 ${activeStep === 1 ? "opacity-100" : "opacity-50 pointer-events-none"}`}>
+              <form onSubmit={handleSubmit} className="bg-gray-900/50 border border-gray-800 rounded-2xl p-8 mb-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-sm font-bold">1</div>
+                  <h2 className="text-2xl font-bold">Register Asset</h2>
+                </div>
+                <p className="text-gray-400 mb-8">Upload your asset file and provide metadata. Supported: Images, 3D Models, Audio, Video.</p>
+
+                {/* File Upload */}
+                <div className="mb-8">
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Asset File <span className="text-red-400">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Nama asset"
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                    required
+                  <FileUpload
+                    file={file}
+                    onFileSelect={setFile}
+                    maxSize={50}
                   />
                 </div>
-                <div>
+
+                {/* Name & Royalty */}
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Asset Name <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g., Dragon Character Model"
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Default Royalty
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={Number(royaltyBPS) / 100}
+                        onChange={(e) => setRoyaltyBPS(String(Number(e.target.value) * 100))}
+                        min="0"
+                        max="50"
+                        step="0.5"
+                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all pr-12"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Royalty for secondary sales (0-50%)</p>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Default Royalty (%)
+                    Description
                   </label>
-                  <input
-                    type="number"
-                    value={Number(royaltyBPS) / 100}
-                    onChange={(e) => setRoyaltyBPS(String(Number(e.target.value) * 100))}
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Royalty percentage for secondary sales (0-100%)
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Deskripsi
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Sedikit penjelasan asset"
-                  rows={3}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              {uploadError && (
-                <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 text-red-400">
-                  Upload error: {uploadError}
-                </div>
-              )}
-
-              {error && (
-                <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 text-red-400">
-                  Error: {error.message}
-                </div>
-              )}
-
-              {isSuccess && (
-                <div className="bg-green-900/20 border border-green-700 rounded-lg p-4 text-green-400">
-                  Asset registered successfully! TX: {hash}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isPending || isConfirming || uploading}
-                className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition"
-              >
-                {uploading
-                  ? "Uploading to IPFS..."
-                  : isPending
-                    ? "Confirming..."
-                    : isConfirming
-                      ? "Waiting for confirmation..."
-                      : "Register Asset"}
-              </button>
-            </form>
-
-            <form className="space-y-4 bg-gray-900 border border-gray-800 rounded-xl p-6 mb-10">
-              <h2 className="text-xl font-semibold mb-2">Step 2 — Fractionalize (wajib sebelum jual lisensi)</h2>
-              <p className="text-sm text-gray-400">Masukkan Asset ID yang sudah didaftarkan, lalu buat fractional token.</p>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Asset ID</label>
-                  <input
-                    type="number"
-                    value={assetIdInput}
-                    onChange={(e) => setAssetIdInput(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
-                  {loadingAsset && <p className="text-xs text-gray-500 mt-1">Memuat data asset...</p>}
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Price per token (ETH)</label>
-                  <input
-                    type="text"
-                    value={pricePerToken}
-                    onChange={(e) => setPricePerToken(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe your asset, its features, and potential use cases..."
+                    rows={4}
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all resize-none"
                   />
                 </div>
-              </div>
 
-              <div className="grid md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">FT Name</label>
-                  <input
-                    type="text"
-                    value={ftName}
-                    onChange={(e) => setFtName(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">FT Symbol</label>
-                  <input
-                    type="text"
-                    value={ftSymbol}
-                    onChange={(e) => setFtSymbol(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Total Supply</label>
-                  <input
-                    type="text"
-                    value={totalSupply}
-                    onChange={(e) => setTotalSupply(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-              </div>
+                {/* Error Messages */}
+                {uploadError && (
+                  <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {uploadError}
+                  </div>
+                )}
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Amount for sale</label>
+                {error && (
+                  <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {error.message}
+                  </div>
+                )}
+
+                {isSuccess && (
+                  <div className="mb-6 flex items-center gap-3 bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-green-400">
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Asset registered successfully!
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isPending || isConfirming || uploading || !file}
+                  className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  {uploading ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Uploading to IPFS...
+                    </>
+                  ) : isPending || isConfirming ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      {isPending ? "Confirm in wallet..." : "Processing..."}
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      Register Asset
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {/* Step 2: Fractionalize */}
+            <div className={`transition-all duration-300 ${activeStep === 2 ? "opacity-100" : "opacity-50 pointer-events-none"}`}>
+              <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-8 mb-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold">2</div>
+                  <h2 className="text-2xl font-bold">Fractionalize Asset</h2>
+                </div>
+                <p className="text-gray-400 mb-8">Convert your NFT into fractional tokens for shared ownership and royalty distribution.</p>
+
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Asset ID</label>
+                    <input
+                      type="number"
+                      value={assetIdInput}
+                      onChange={(e) => setAssetIdInput(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                    />
+                    {loadingAsset && <p className="text-xs text-gray-500 mt-1">Loading asset data...</p>}
+                    {asset && (asset as any).exists && (
+                      <p className="text-xs text-green-400 mt-1">Asset found</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Price per Token (IP)</label>
+                    <input
+                      type="text"
+                      value={pricePerToken}
+                      onChange={(e) => setPricePerToken(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Token Name</label>
+                    <input
+                      type="text"
+                      value={ftName}
+                      onChange={(e) => setFtName(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Token Symbol</label>
+                    <input
+                      type="text"
+                      value={ftSymbol}
+                      onChange={(e) => setFtSymbol(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Total Supply</label>
+                    <input
+                      type="text"
+                      value={totalSupply}
+                      onChange={(e) => setTotalSupply(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Amount for Sale</label>
                   <input
                     type="text"
                     value={amountForSale}
                     onChange={(e) => setAmountForSale(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Number of tokens to put up for sale in the primary market</p>
                 </div>
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    onClick={handleApproveAndFractionalize}
-                    disabled={!canFractionalize || status === "approving" || status === "fractionalizing" || status === "approvingSale"}
-                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition"
-                  >
-                    {status === "approving"
-                      ? "Approving NFT..."
-                      : status === "fractionalizing"
-                        ? "Fractionalizing..."
-                        : status === "approvingSale"
-                          ? "Approving sale..."
-                          : "Fractionalize"}
-                  </button>
-                </div>
+
+                {actionHash && (
+                  <div className="mb-6 bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 text-blue-300 text-sm break-all">
+                    Transaction: {actionHash}
+                  </div>
+                )}
+
+                {actionError && (
+                  <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
+                    {actionError}
+                  </div>
+                )}
+
+                {status === "done" && (
+                  <div className="mb-6 flex items-center gap-3 bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-green-400">
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Fractionalization complete! Continue to Step 3 to create a license offer.
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleApproveAndFractionalize}
+                  disabled={!canFractionalize || status === "approving" || status === "fractionalizing" || status === "approvingSale"}
+                  className="w-full py-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  {status === "approving" ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Approving NFT...
+                    </>
+                  ) : status === "fractionalizing" ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Fractionalizing...
+                    </>
+                  ) : status === "approvingSale" ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Approving Sale...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                      </svg>
+                      Fractionalize Asset
+                    </>
+                  )}
+                </button>
               </div>
+            </div>
 
-              {actionHash && (
-                <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3 text-blue-200 text-sm break-all">
-                  TX: {actionHash}
+            {/* Step 3: Create License Offer */}
+            <div className={`transition-all duration-300 ${activeStep === 3 ? "opacity-100" : "opacity-50 pointer-events-none"}`}>
+              <form onSubmit={handleCreateOffer} className="bg-gray-900/50 border border-gray-800 rounded-2xl p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">3</div>
+                  <h2 className="text-2xl font-bold">Create License Offer</h2>
                 </div>
-              )}
-              {actionError && (
-                <div className="bg-red-900/20 border border-red-700 rounded-lg p-3 text-red-300 text-sm">
-                  {actionError}
-                </div>
-              )}
-              {status === "done" && (
-                <div className="bg-green-900/20 border border-green-700 rounded-lg p-3 text-green-300 text-sm">
-                  Fractionalize selesai. Lanjut ke Step 3 untuk jual lisensi.
-                </div>
-              )}
-            </form>
+                <p className="text-gray-400 mb-8">Set up your license terms and pricing. Buyers will receive an NFT as proof of license.</p>
 
-            <form onSubmit={handleCreateOffer} className="space-y-4 bg-gray-900 border border-gray-800 rounded-xl p-6">
-              <h2 className="text-xl font-semibold mb-2">Step 3 — Publish License Offer</h2>
-              <p className="text-sm text-gray-400">
-                Setelah fractionalize, masukkan Asset ID lalu publish lisensi langsung dari sini.
-              </p>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Asset ID</label>
-                  <input
-                    type="number"
-                    value={assetIdForOffer}
-                    onChange={(e) => setAssetIdForOffer(e.target.value)}
-                    placeholder="Mis. 1"
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Harga lisensi (ETH)</label>
-                  <input
-                    type="text"
-                    value={priceEth}
-                    onChange={(e) => setPriceEth(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Royalty BPS</label>
-                  <input
-                    type="number"
-                    value={royaltyOfferBps}
-                    onChange={(e) => setRoyaltyOfferBps(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Basis points (500 = 5%)</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Type (0/1/2)</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Asset ID</label>
                     <input
                       type="number"
-                      value={ltype}
-                      onChange={(e) => setLtype(e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                      value={assetIdForOffer}
+                      onChange={(e) => setAssetIdForOffer(e.target.value)}
+                      placeholder="Enter Asset ID"
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                      required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Preset (0/1/2)</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">License Price (IP)</label>
                     <input
-                      type="number"
-                      value={preset}
-                      onChange={(e) => setPreset(e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
+                      type="text"
+                      value={priceEth}
+                      onChange={(e) => setPriceEth(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
                     />
                   </div>
                 </div>
-              </div>
 
-              <div className="grid md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Max Supply (0 = unlimited)</label>
-                  <input
-                    type="number"
-                    value={maxSupply}
-                    onChange={(e) => setMaxSupply(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
+                {/* License Type Selection */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-300 mb-3">License Type</label>
+                  <div className="grid md:grid-cols-3 gap-3">
+                    {LICENSE_TYPES.map((type) => (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => setLtype(type.value)}
+                        className={`p-4 rounded-xl border text-left transition-all ${
+                          ltype === type.value
+                            ? "border-purple-500 bg-purple-500/10"
+                            : "border-gray-700 bg-gray-800/30 hover:border-gray-600"
+                        }`}
+                      >
+                        <div className="font-medium mb-1">{type.label}</div>
+                        <div className="text-xs text-gray-400">{type.description}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Duration (seconds, 0 = permanent)</label>
-                  <input
-                    type="number"
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Metadata URI</label>
-                  <input
-                    type="text"
-                    value={uriOffer}
-                    onChange={(e) => setUriOffer(e.target.value)}
-                    placeholder="ipfs://..."
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Terisi otomatis setelah upload asset.</p>
-                </div>
-              </div>
 
-              {offerMessage && (
-                <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3 text-yellow-200 text-sm">
-                  {offerMessage}
+                {/* License Preset Selection */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-300 mb-3">License Preset</label>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {LICENSE_PRESETS.map((p) => (
+                      <button
+                        key={p.value}
+                        type="button"
+                        onClick={() => setPreset(p.value)}
+                        className={`p-4 rounded-xl border text-left transition-all ${
+                          preset === p.value
+                            ? "border-indigo-500 bg-indigo-500/10"
+                            : "border-gray-700 bg-gray-800/30 hover:border-gray-600"
+                        }`}
+                      >
+                        <div className="font-medium mb-1">{p.label}</div>
+                        <div className="text-xs text-gray-400">{p.description}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              )}
 
-              {offerError && (
-                <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 text-red-400">
-                  Offer error: {offerError.message}
+                <div className="grid md:grid-cols-3 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Max Supply</label>
+                    <input
+                      type="number"
+                      value={maxSupply}
+                      onChange={(e) => setMaxSupply(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">0 = unlimited</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Duration (seconds)</label>
+                    <input
+                      type="number"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">0 = permanent</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Royalty (BPS)</label>
+                    <input
+                      type="number"
+                      value={royaltyOfferBps}
+                      onChange={(e) => setRoyaltyOfferBps(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:outline-none focus:border-purple-500 transition-all"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">500 = 5%</p>
+                  </div>
                 </div>
-              )}
 
-              {offerSuccess && (
-                <div className="bg-green-900/20 border border-green-700 rounded-lg p-4 text-green-400">
-                  License offer created! TX: {offerHash}
-                </div>
-              )}
+                {offerMessage && (
+                  <div className="mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 text-yellow-300">
+                    {offerMessage}
+                  </div>
+                )}
 
-              <button
-                type="submit"
-                disabled={offerPending || offerConfirming}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition"
-              >
-                {offerPending ? "Confirm in wallet..." : offerConfirming ? "Waiting for confirmation..." : "Publish License Offer"}
-              </button>
-            </form>
+                {offerError && (
+                  <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
+                    {offerError.message}
+                  </div>
+                )}
+
+                {offerSuccess && (
+                  <div className="mb-6 flex items-center gap-3 bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-green-400">
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    License offer created successfully!
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={offerPending || offerConfirming}
+                  className="w-full py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  {offerPending || offerConfirming ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      {offerPending ? "Confirm in wallet..." : "Processing..."}
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Publish License Offer
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
           </>
         )}
       </main>

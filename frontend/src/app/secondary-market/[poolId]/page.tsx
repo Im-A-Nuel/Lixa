@@ -563,7 +563,7 @@ export default function TokenDetailPage() {
 
   if (!pool) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-gray-400">Loading pool data...</div>
       </div>
     );
@@ -578,7 +578,7 @@ export default function TokenDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen">
       <MarketplaceNav />
 
       <main className="max-w-7xl mx-auto px-6 py-8">

@@ -14,3 +14,12 @@ fs_permissions = [{ access = "read-write", path = "./deployments" }]
 
 [fmt]
 line_length = 100
+
+# RPC Endpoints (loaded from .env)
+[rpc_endpoints]
+anvil = "${ANVIL_RPC_URL}"
+story_testnet = "${STORY_TESTNET_RPC_URL}"
+
+# Etherscan/Block Explorer for verification
+[etherscan]
+story_testnet = { key = "${ETHERSCAN_API_KEY}", url = "https://aeneid.storyscan.xyz/api" }

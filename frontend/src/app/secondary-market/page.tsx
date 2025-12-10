@@ -342,7 +342,9 @@ export default function SecondaryMarketPage() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen text-white relative">
+      <div className="fixed inset-0 z-0" style={{ backgroundImage: 'url(/purplewave.gif)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(200px)', opacity: 0.3 }} />
+      <div className="relative z-10">
       <MarketplaceNav />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
@@ -490,6 +492,7 @@ export default function SecondaryMarketPage() {
           </div>
         )}
       </main>
+      </div>
     </div>
   );
 }

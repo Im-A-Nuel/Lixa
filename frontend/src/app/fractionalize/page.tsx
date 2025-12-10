@@ -237,7 +237,9 @@ export default function FractionalizePage() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen text-white relative">
+      <div className="fixed inset-0 z-0" style={{ backgroundImage: 'url(/purplewave.gif)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(200px)', opacity: 0.3 }} />
+      <div className="relative z-10">
       <header className="border-b border-gray-800 px-6 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-8">
@@ -399,6 +401,7 @@ export default function FractionalizePage() {
           </div>
         )}
       </main>
+      </div>
     </div>
   );
 }

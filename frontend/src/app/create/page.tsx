@@ -366,7 +366,9 @@ export default function CreatePage() {
   );
 
   return (
-    <div className="min-h-screen text-white bg-[#0a0a0f]">
+    <div className="min-h-screen text-white relative">
+      <div className="fixed inset-0 z-0" style={{ backgroundImage: 'url(/purplewave.gif)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(200px)', opacity: 0.3 }} />
+      <div className="relative z-10">
       <MarketplaceNav />
 
       <main className="max-w-4xl mx-auto px-6 py-12">
@@ -836,6 +838,7 @@ export default function CreatePage() {
           </>
         )}
       </main>
+      </div>
     </div>
   );
 }

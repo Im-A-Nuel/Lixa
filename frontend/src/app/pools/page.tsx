@@ -251,14 +251,16 @@ export default function PoolsPage() {
   };
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-white relative">
+      <div className="fixed inset-0 z-0" style={{ backgroundImage: 'url(/purplewave.gif)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(200px)', opacity: 0.3 }} />
+      <div className="relative z-10">
       <MarketplaceNav />
 
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Primary Market</h1>
-            <p className="text-gray-400">Beli fractional token langsung dari pemilik awal.</p>
+            <p className="text-gray-400">Buy fractional tokens directly from the original owner.</p>
           </div>
           {!isConnected && <ConnectButton />}
         </div>
@@ -313,7 +315,7 @@ export default function PoolsPage() {
                       </p>
 
                       <div className="space-y-2">
-                        <label className="block text-xs text-gray-400">Jumlah beli (token, 18 desimal)</label>
+                        <label className="block text-xs text-gray-400">Amount to buy (tokens, 18 decimals)</label>
                         <input
                           type="text"
                           value={amountInputs[pool.id] ?? "0"}
@@ -345,6 +347,7 @@ export default function PoolsPage() {
           </div>
         )}
       </main>
+      </div>
     </div>
   );
 }

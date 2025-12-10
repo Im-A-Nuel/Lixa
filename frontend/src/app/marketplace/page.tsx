@@ -614,7 +614,9 @@ export default function MarketplacePage() {
   };
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-white relative">
+      <div className="fixed inset-0 z-0" style={{ backgroundImage: 'url(/purplewave.gif)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(200px)', opacity: 0.3 }} />
+      <div className="relative z-10">
       <MarketplaceNav />
 
       <main className="max-w-7xl mx-auto px-6 py-12">
@@ -622,7 +624,7 @@ export default function MarketplacePage() {
           <div>
             <h1 className="text-3xl font-bold">License Market</h1>
             <p className="text-gray-400 mt-1">
-              {totalAssets ? `${totalAssets.toString()} asset terdaftar` : "Asset yang sudah diregistrasi + lisensi"}
+              {totalAssets ? `${totalAssets.toString()} assets registered` : "Registered assets + licenses"}
             </p>
           </div>
           <div className="flex gap-3">
@@ -758,13 +760,13 @@ export default function MarketplacePage() {
                   {(() => {
                     const offer = selectedAsset ? offersByAssetId[selectedAsset.id] : null;
                     if (!offer) {
-                      return <p className="text-sm text-gray-400">Creator belum publish lisensi.</p>;
+                      return <p className="text-sm text-gray-400">Creator has not published a license yet.</p>;
                     }
                     const typeLabel = offer.ltype === 1 ? "EXCLUSIVE" : offer.ltype === 2 ? "DERIVATIVE" : "NON_EXCLUSIVE";
                     return (
                       <>
-                        <p className="text-sm text-gray-300">Tipe: {typeLabel}</p>
-                        <p className="text-sm text-gray-300">Harga: {formatEther(offer.price)} ETH</p>
+                        <p className="text-sm text-gray-300">Type: {typeLabel}</p>
+                        <p className="text-sm text-gray-300">Price: {formatEther(offer.price)} ETH</p>
                         <p className="text-xs text-gray-500 break-all">URI: {offer.uri}</p>
 
                         {licenseMessage && (
@@ -782,7 +784,7 @@ export default function MarketplacePage() {
                         <button
                           onClick={async () => {
                             if (!selectedAsset || !address) {
-                              setLicenseMessage("Connect wallet terlebih dahulu");
+                              setLicenseMessage("Please connect your wallet first");
                               return;
                             }
                             if (!licenseManager) {
@@ -871,6 +873,7 @@ export default function MarketplacePage() {
         )}
 
       </main>
+      </div>
     </div>
   );
 }

@@ -105,7 +105,9 @@ export default function TradeHistoryPage() {
   const filtered = useMemo(() => trades, [trades]);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen text-white relative">
+      <div className="fixed inset-0 z-0" style={{ backgroundImage: 'url(/purplewave.gif)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(200px)', opacity: 0.3 }} />
+      <div className="relative z-10">
       <MarketplaceNav />
 
       <main className="max-w-6xl mx-auto px-6 py-10 space-y-6">
@@ -113,7 +115,7 @@ export default function TradeHistoryPage() {
           <div>
             <p className="text-sm text-purple-300 uppercase tracking-wide">Exchange History</p>
             <h1 className="text-3xl font-bold">Trade History</h1>
-            <p className="text-gray-400">Semua transaksi buy/sell yang sudah settle on-chain.</p>
+            <p className="text-gray-400">All buy/sell transactions that have been settled on-chain.</p>
           </div>
           <div className="flex gap-2 flex-wrap">
             <button
@@ -127,7 +129,7 @@ export default function TradeHistoryPage() {
 
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="text-sm text-gray-400">
-            <p>Menampilkan transaksi wallet ini (buy & sell)</p>
+            <p>Showing transactions for this wallet (buy & sell)</p>
           </div>
           <div className="text-right text-sm text-gray-400">
             <p>Total trade: {filtered.length}</p>
@@ -138,11 +140,11 @@ export default function TradeHistoryPage() {
 
         {!isConnected ? (
           <div className="text-center py-12 bg-gray-900 border border-gray-800 rounded-lg">
-            <p className="text-lg font-semibold text-gray-200 mb-2">Hubungkan wallet untuk melihat riwayatmu</p>
-            <p className="text-gray-500">Trade history kini hanya menampilkan transaksi wallet yang terhubung.</p>
+            <p className="text-lg font-semibold text-gray-200 mb-2">Connect wallet to view your history</p>
+            <p className="text-gray-500">Trade history only shows transactions for the connected wallet.</p>
             <div className="mt-4 flex justify-center gap-3">
               <Link href="/secondary-market" className="px-4 py-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700 transition">
-                Ke Secondary Market
+                Go to Secondary Market
               </Link>
             </div>
           </div>
@@ -150,11 +152,11 @@ export default function TradeHistoryPage() {
           <div className="text-center text-gray-400 py-10">Loading history...</div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 bg-gray-900 border border-gray-800 rounded-lg">
-            <p className="text-lg font-semibold text-gray-200 mb-2">Belum ada trade</p>
-            <p className="text-gray-500">Coba refresh atau lakukan settlement di Secondary Market.</p>
+            <p className="text-lg font-semibold text-gray-200 mb-2">No trades yet</p>
+            <p className="text-gray-500">Try refreshing or make a settlement on the Secondary Market.</p>
             <div className="mt-4 flex justify-center gap-3">
               <Link href="/secondary-market" className="px-4 py-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700 transition">
-                Ke Secondary Market
+                Go to Secondary Market
               </Link>
             </div>
           </div>
@@ -220,6 +222,7 @@ export default function TradeHistoryPage() {
           </div>
         )}
       </main>
+      </div>
     </div>
   );
 }

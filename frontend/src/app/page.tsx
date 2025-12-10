@@ -9,7 +9,9 @@ export default function Home() {
   const { isConnected } = useAccount();
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-white relative">
+      <div className="fixed inset-0 z-0" style={{ backgroundImage: 'url(/purplewave.gif)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(200px)', opacity: 0.3 }} />
+      <div className="relative z-10">
       <MarketplaceNav />
 
       <main className="max-w-7xl mx-auto px-6 py-20">
@@ -124,6 +126,7 @@ export default function Home() {
           <p className="mt-2">Built for hackathon demo. Use at your own risk.</p>
         </div>
       </footer>
+      </div>
     </div>
   );
 }

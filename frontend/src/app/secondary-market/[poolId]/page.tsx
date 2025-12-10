@@ -578,7 +578,9 @@ export default function TokenDetailPage() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen text-white relative">
+      <div className="fixed inset-0 z-0" style={{ backgroundImage: 'url(/purplewave.gif)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(200px)', opacity: 0.3 }} />
+      <div className="relative z-10">
       <MarketplaceNav />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
@@ -842,7 +844,7 @@ export default function TokenDetailPage() {
               )}
 
               <p className="text-xs text-gray-500">
-                Cancel tetap off-chain; settlement dilakukan langsung lewat wallet.
+                Cancel remains off-chain; settlement is done directly via wallet.
               </p>
             </div>
 
@@ -914,6 +916,7 @@ export default function TokenDetailPage() {
           </div>
         </div>
       </main>
+      </div>
     </div>
   );
 }

@@ -17,7 +17,7 @@ interface MatchRequest {
 
 /**
  * POST /api/orders/match
- * Match buy order dengan sell order dan calculate gas fee
+ * Match buy order with sell order and calculate gas fee
  */
 export async function POST(request: NextRequest) {
   try {
@@ -80,14 +80,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate settlement price (gunakan sell price yang lebih fair)
+    // Calculate settlement price (use sell price for fairer calculation)
     const settlementPrice = calculateSettlementPrice(
       buyOrder.pricePerToken,
       sellOrder.pricePerToken,
       true
     );
 
-    // Get gas fee percentage from env atau default 0.1%
+    // Get gas fee percentage from env or default 0.1%
     const gasFeePercentage =
       parseFloat(process.env.NEXT_PUBLIC_DEFAULT_GAS_FEE_PERCENTAGE || "0.001");
 
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/orders/match?buyOrderId=xxx&sellOrderId=yyy&matchAmount=zzz
- * Preview match result tanpa create
+ * Preview match result without creating
  */
 export async function GET(request: NextRequest) {
   try {

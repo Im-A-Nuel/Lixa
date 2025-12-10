@@ -1,8 +1,8 @@
 import { Address, Hash, TypedDataDomain, TypedDataField } from "viem";
 
 /**
- * Offchain Order System untuk Bid/Ask
- * User sign message untuk create order, kemudian dapat di-match dan settle onchain
+ * Offchain Order System for Bid/Ask
+ * User signs message to create order, then can be matched and settled on-chain
  */
 
 export type OrderSide = "BID" | "ASK";
@@ -15,13 +15,13 @@ export interface OffchainOrder {
   userAddress: Address;
 
   // Order details
-  side: OrderSide; // BID atau ASK
+  side: OrderSide; // BID or ASK
   poolId: bigint;
   ftAddress: Address;
 
-  // Amount dan price
-  amount: bigint; // Jumlah token (18 decimals)
-  pricePerToken: bigint; // Harga per token (dalam ETH, 18 decimals)
+  // Amount and price
+  amount: bigint; // Token amount (18 decimals)
+  pricePerToken: bigint; // Price per token (in ETH, 18 decimals)
 
   // Timing
   createdAt: number; // Unix timestamp
@@ -29,7 +29,7 @@ export interface OffchainOrder {
 
   // Status tracking
   status: OrderStatus;
-  filledAmount: bigint; // Sudah di-fill berapa banyak
+  filledAmount: bigint; // Amount already filled
 
   // EIP-712 Signature
   signature?: string;
@@ -38,23 +38,23 @@ export interface OffchainOrder {
 
 export interface BidOrder extends OffchainOrder {
   side: "BID";
-  // Buyer offers ETH untuk membeli FT
+  // Buyer offers ETH to buy FT
 }
 
 export interface AskOrder extends OffchainOrder {
   side: "ASK";
-  // Seller offers FT dengan harga minimum
+  // Seller offers FT with minimum price
 }
 
 /**
- * EIP-712 Domain Separator untuk signing
+ * EIP-712 Domain Separator for signing
  */
 export function getOrderDomain(chainId: number): TypedDataDomain {
   return {
     name: "Lixa Order Book",
     version: "1",
     chainId,
-    verifyingContract: "0x0000000000000000000000000000000000000000", // Bisa jadi contract address atau constant
+    verifyingContract: "0x0000000000000000000000000000000000000000", // Can be contract address or constant
   };
 }
 
@@ -64,7 +64,7 @@ export function getOrderDomain(chainId: number): TypedDataDomain {
 export const ORDER_TYPES: Record<string, TypedDataField[]> = {
   Order: [
     { name: "orderId", type: "string" },
-    { name: "side", type: "string" }, // "BID" atau "ASK"
+    { name: "side", type: "string" }, // "BID" or "ASK"
     { name: "poolId", type: "uint256" },
     { name: "ftAddress", type: "address" },
     { name: "amount", type: "uint256" },
@@ -98,17 +98,17 @@ export function createOrderSignaturePayload(order: OffchainOrder) {
 }
 
 /**
- * Validasi order sebelum sign
+ * Validate order before signing
  */
 export function validateOrder(order: OffchainOrder): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  if (!order.orderId) errors.push("Order ID harus diisi");
-  if (!order.ftAddress) errors.push("FT Address harus diisi");
-  if (order.amount <= BigInt(0)) errors.push("Amount harus lebih dari 0");
-  if (order.pricePerToken <= BigInt(0)) errors.push("Price per token harus lebih dari 0");
-  if (order.expiresAt <= Date.now() / 1000) errors.push("Order sudah expired");
-  if (order.nonce < 0) errors.push("Nonce invalid");
+  if (!order.orderId) errors.push("Order ID is required");
+  if (!order.ftAddress) errors.push("FT Address is required");
+  if (order.amount <= BigInt(0)) errors.push("Amount must be greater than 0");
+  if (order.pricePerToken <= BigInt(0)) errors.push("Price per token must be greater than 0");
+  if (order.expiresAt <= Date.now() / 1000) errors.push("Order has expired");
+  if (order.nonce < 0) errors.push("Invalid nonce");
 
   return {
     valid: errors.length === 0,
@@ -117,28 +117,28 @@ export function validateOrder(order: OffchainOrder): { valid: boolean; errors: s
 }
 
 /**
- * Calculate total value dari order
+ * Calculate total value of order
  */
 export function calculateOrderValue(order: OffchainOrder): bigint {
   return (order.amount * order.pricePerToken) / BigInt(1e18);
 }
 
 /**
- * Check apakah order sudah expired
+ * Check if order has expired
  */
 export function isOrderExpired(order: OffchainOrder): boolean {
   return order.expiresAt < Math.floor(Date.now() / 1000);
 }
 
 /**
- * Check apakah order fully filled
+ * Check if order is fully filled
  */
 export function isOrderFullyFilled(order: OffchainOrder): boolean {
   return order.filledAmount >= order.amount;
 }
 
 /**
- * Get remaining amount yang dapat di-fill
+ * Get remaining amount that can be filled
  */
 export function getRemainingAmount(order: OffchainOrder): bigint {
   return order.amount - order.filledAmount;

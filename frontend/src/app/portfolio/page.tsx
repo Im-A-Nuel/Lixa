@@ -10,6 +10,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { formatUnits } from "viem";
+import Link from "next/link";
 import { getContractAddress } from "@/lib/contracts/addresses";
 import AssetRegistryABI from "@/lib/contracts/AssetRegistry.json";
 import FractionalizerABI from "@/lib/contracts/Fractionalizer.json";
@@ -26,6 +27,20 @@ const ERC20_ABI = [
     inputs: [{ name: "account", type: "address" }],
     outputs: [{ name: "", type: "uint256" }],
   },
+  {
+    type: "function",
+    name: "name",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
+    type: "function",
+    name: "symbol",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "string" }],
+  },
 ];
 
 export default function PortfolioPage() {
@@ -35,7 +50,7 @@ export default function PortfolioPage() {
   const licenseNftAddress = chainId ? getContractAddress(chainId, "LicenseNFT") : undefined;
   const licenseManagerAddress = chainId ? getContractAddress(chainId, "LicenseManager") : undefined;
   const [ownedLicenses, setOwnedLicenses] = useState<
-    { tokenId: bigint; name?: string; description?: string; licenseType?: string; offerId?: string; assetId?: string; uri?: string; image?: string }
+    { tokenId: bigint; name?: string; description?: string; licenseType?: string; offerId?: string; assetId?: string; uri?: string; image?: string }[]
   >([]);
   const [loadingLicenses, setLoadingLicenses] = useState(false);
   const [licenseError, setLicenseError] = useState<string | null>(null);
@@ -145,8 +160,8 @@ export default function PortfolioPage() {
           image?: string;
         }[] = [];
 
-        for (let i = 0; i < licenseTokenIds.length; i++) {
-          const tid = licenseTokenIds[i] as bigint;
+        for (let i = 0; i < (licenseTokenIds as bigint[]).length; i++) {
+          const tid = (licenseTokenIds as bigint[])[i];
           const uriResult = licenseUris[i];
           if (!uriResult || uriResult.status !== "success") continue;
           const rawUri = uriResult.result as string;
@@ -288,8 +303,6 @@ export default function PortfolioPage() {
     };
     fetchAssets();
   }, [assetDetailsData, licenseAssetIds]);
-
-  // Removed off-chain license fetch; list is derived from on-chain LicenseNFT ownership
 
   const balanceQueries = useMemo(() => {
     if (!poolData || !address) return [];
@@ -462,175 +475,242 @@ export default function PortfolioPage() {
     }
   }, [claimSuccess, refetchClaimables]);
 
+  // Card wrapper component with gradient border
+  const GradientCard = ({ children, className = "", gradient = "cyan" }: { children: React.ReactNode; className?: string; gradient?: "cyan" | "purple" | "mixed" }) => {
+    const gradientStyles = {
+      cyan: "from-cyan-500/50 via-cyan-400/30 to-cyan-500/50",
+      purple: "from-purple-500/50 via-pink-400/30 to-purple-500/50",
+      mixed: "from-cyan-500/50 via-purple-400/30 to-pink-500/50",
+    };
+
+    return (
+      <div className={`relative group ${className}`}>
+        {/* Gradient border glow */}
+        <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradientStyles[gradient]} rounded-xl blur-sm opacity-75 group-hover:opacity-100 transition-opacity`} />
+        {/* Card content */}
+        <div className="relative bg-gray-900/95 backdrop-blur-sm rounded-xl border border-gray-800/50">
+          {children}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-white relative">
+      <div className="fixed inset-0 z-0" style={{ backgroundImage: 'url(/purplewave.gif)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(200px)', opacity: 0.3 }} />
+      <div className="relative z-10">
       <MarketplaceNav />
 
-      <main className="max-w-7xl mx-auto px-6 py-12 space-y-10">
+      <main className="max-w-7xl mx-auto px-6 py-12 space-y-8">
+        {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold mb-2">Portfolio</h1>
+          <h1 className="text-4xl font-bold mb-2">Portfolio</h1>
           <p className="text-gray-400">Your registered assets and fractional token balances.</p>
         </div>
 
         {!isConnected ? (
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 text-center">
-            <p className="text-gray-400 mb-4">Connect your wallet to view your portfolio.</p>
-            <ConnectButton />
-          </div>
-        ) : (
-          <>
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">Registered Assets</h2>
-              {registeredAssets.length === 0 ? (
-                <p className="text-gray-400">No assets registered by this wallet.</p>
-              ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {registeredAssets.map((a, idx) => (
-                    <div key={idx} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-2">
-                      <p className="text-sm text-gray-400 break-all">Metadata: {a.metadataURI}</p>
-                      <p className="text-sm text-gray-400 break-all">NFT: {a.nftContract} #{a.tokenId.toString()}</p>
-                      <p className="text-sm text-gray-400">Royalty: {(Number(a.defaultRoyaltyBPS) / 100).toFixed(2)}%</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">Licenses Owned</h2>
-              {loadingLicenses || loadingLicenseIds ? (
-                <p className="text-gray-400">Loading licenses...</p>
-              ) : licenseError ? (
-                <p className="text-red-400 text-sm">{licenseError}</p>
-              ) : ownedLicenses.length === 0 ? (
-                <p className="text-gray-400">No licenses purchased.</p>
-              ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {ownedLicenses.map((l) => {
-                    const tokenIdStr = l.tokenId ? l.tokenId.toString() : "";
-                    return (
-                      <div key={tokenIdStr} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-2">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="text-sm text-gray-300 font-semibold">{l.name || `License #${tokenIdStr}`}</p>
-                            <p className="text-xs text-gray-500">Token ID: {tokenIdStr}</p>
-                          </div>
-                          <span className="text-xs px-2 py-1 rounded bg-blue-900/30 text-blue-300">
-                            {l.licenseType || "LICENSE"}
-                          </span>
-                        </div>
-                        {l.assetId && <p className="text-xs text-gray-400">Asset ID: {l.assetId}</p>}
-                        {l.offerId && <p className="text-xs text-gray-400">Offer ID: {l.offerId}</p>}
-                        {l.description && <p className="text-sm text-gray-400 line-clamp-3">{l.description}</p>}
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          {l.uri && (
-                            <a
-                              href={ipfsHttpGateways(l.uri)[0]}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-2 py-1 bg-gray-800 text-purple-300 rounded"
-                            >
-                              Open license metadata
-                            </a>
-                          )}
-                          {l.assetId && assetMediaMap[Number(l.assetId)]?.metadataURI && (
-                            <a
-                              href={ipfsHttpGateways(assetMediaMap[Number(l.assetId)].metadataURI!)[0]}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-2 py-1 bg-gray-800 text-purple-300 rounded"
-                            >
-                              Open asset metadata
-                            </a>
-                          )}
-                          {(() => {
-                            const data =
-                              (l.assetId && assetMediaMap[Number(l.assetId)]) || (l.image ? { image: l.image } : null);
-                            if (!data?.image) return null;
-                            const imageCid = data.image;
-                            const rawName =
-                              data.filename ||
-                              imageCid.split("/").pop()?.split("?")[0] ||
-                              "asset";
-                            const nameWithExt = rawName.includes(".")
-                              ? rawName
-                              : (data.mimeType && data.mimeType.includes("gltf")) ? `${rawName}.glb` : `${rawName}.glb`;
-                            const downloadUrl = `/api/download-asset?url=${encodeURIComponent(imageCid)}&filename=${encodeURIComponent(
-                              nameWithExt
-                            )}`;
-                            return (
-                              <a
-                                href={downloadUrl}
-                                className="px-2 py-1 bg-gray-800 text-purple-300 rounded"
-                              >
-                                Download asset
-                              </a>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">Fractional Tokens Held</h2>
-              <div className="text-sm text-gray-300">
-                Total claimable royalty:{" "}
-                {claimableLoading
-                  ? "Loading..."
-                  : `${Number(formatUnits(totalClaimable, 18)).toLocaleString(undefined, { maximumFractionDigits: 6 })} ETH`}
+          <GradientCard gradient="mixed" className="max-w-md mx-auto">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-purple-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
               </div>
-              {fractionalHoldings.length === 0 ? (
-                <p className="text-gray-400">No fractional token balance.</p>
-              ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {fractionalHoldings.map((p) => {
-                    const chainMeta = holdingMetaMap[p.id];
-                    const apiMeta = holdingApiMeta[p.id];
-                    const displayName = chainMeta?.name || apiMeta?.ftName || `Pool #${p.id}`;
-                    const displaySymbol = chainMeta?.symbol || apiMeta?.ftSymbol;
-                    return (
-                      <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-2">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h3 className="font-semibold">{displayName}</h3>
-                            {displaySymbol && <p className="text-xs text-gray-400">{displaySymbol}</p>}
-                          </div>
-                          <span className={`text-xs px-2 py-1 rounded ${p.active ? "bg-green-900/40 text-green-400" : "bg-gray-800 text-gray-400"}`}>
-                            {p.active ? "Active" : "Closed"}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-400 break-all">FT: {p.ftAddress}</p>
-                        <p className="text-sm text-gray-400 break-all">NFT: {p.nftContract} #{p.tokenId.toString()}</p>
-                        <p className="text-sm text-gray-400">Balance: {formatUnits(p.balance, 18)} tokens</p>
-                        <p className="text-sm text-gray-400">Sold: {formatUnits(p.sold, 18)} / {formatUnits(p.totalFractions, 18)}</p>
-                        <p className="text-sm text-gray-300">
-                          Claimable royalty:{" "}
-                          {claimableLoading
-                            ? "Loading..."
-                            : `${Number(formatUnits(claimableMap[p.id] || 0n, 18)).toLocaleString(undefined, { maximumFractionDigits: 6 })} ETH`}
-                        </p>
-                        <button
-                          onClick={() => handleClaim(p.id)}
-                          disabled={claimConfirming || (claimableMap[p.id] || 0n) === 0n}
-                          className="w-full py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition text-sm"
-                        >
-                          {claimConfirming ? "Claiming..." : "Claim Royalties"}
-                        </button>
-                        {claimSuccess && <p className="text-xs text-green-400">Claim sent: {claimHash}</p>}
-                        {claimError && <p className="text-xs text-red-400 break-all">Error: {claimError.message}</p>}
-                      </div>
-                    );
-                  })}
+              <p className="text-gray-300 mb-6">Connect your wallet to view your portfolio.</p>
+              <ConnectButton />
+            </div>
+          </GradientCard>
+        ) : (
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Registered Assets Card */}
+            <GradientCard gradient="cyan">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                    </div>
+                    <h2 className="text-xl font-semibold">Registered Assets</h2>
+                  </div>
+                  <Link href="/marketplace" className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors">
+                    View All
+                  </Link>
                 </div>
-              )}
-            </section>
-          </>
+
+                <div className="text-5xl font-bold mb-4 text-white">
+                  {registeredAssets.length}
+                </div>
+
+                {registeredAssets.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No assets registered by this wallet.</p>
+                ) : (
+                  <div className="space-y-3 max-h-48 overflow-auto">
+                    {registeredAssets.slice(0, 3).map((a, idx) => (
+                      <div key={idx} className="bg-gray-800/50 rounded-lg p-3 text-sm">
+                        <p className="text-gray-300 truncate">NFT: {a.nftContract.slice(0, 10)}...#{a.tokenId.toString()}</p>
+                        <p className="text-gray-500 text-xs">Royalty: {(Number(a.defaultRoyaltyBPS) / 100).toFixed(2)}%</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </GradientCard>
+
+            {/* Licenses Owned Card */}
+            <GradientCard gradient="purple">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-xl font-semibold">Licenses Owned</h2>
+                  </div>
+                </div>
+
+                {loadingLicenses || loadingLicenseIds ? (
+                  <div className="flex items-center gap-3 text-gray-400">
+                    <div className="w-5 h-5 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+                    <span>Loading licenses...</span>
+                  </div>
+                ) : licenseError ? (
+                  <p className="text-red-400 text-sm">{licenseError}</p>
+                ) : ownedLicenses.length === 0 ? (
+                  <div>
+                    <p className="text-5xl font-bold mb-4">0</p>
+                    <p className="text-gray-500 text-sm">No licenses purchased.</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-5xl font-bold mb-4">{ownedLicenses.length}</p>
+                    <div className="space-y-3 max-h-48 overflow-auto">
+                      {ownedLicenses.slice(0, 3).map((l) => {
+                        const tokenIdStr = l.tokenId ? l.tokenId.toString() : "";
+                        const data =
+                          (l.assetId && assetMediaMap[Number(l.assetId)]) || (l.image ? { image: l.image } : null);
+                        return (
+                          <div key={tokenIdStr} className="bg-gray-800/50 rounded-lg p-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="text-gray-300 text-sm font-medium">{l.name || `License #${tokenIdStr}`}</p>
+                                <p className="text-gray-500 text-xs">Token ID: {tokenIdStr}</p>
+                              </div>
+                              <span className="text-xs px-2 py-1 rounded bg-purple-900/50 text-purple-300">
+                                {l.licenseType || "LICENSE"}
+                              </span>
+                            </div>
+                            {data?.image && (
+                              <div className="mt-2 flex gap-2">
+                                <a
+                                  href={`/api/download-asset?url=${encodeURIComponent(data.image)}&filename=asset`}
+                                  className="text-xs text-purple-400 hover:text-purple-300"
+                                >
+                                  Download asset
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </GradientCard>
+
+            {/* Fractional Tokens Held - Full Width */}
+            <GradientCard gradient="mixed" className="lg:col-span-2">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                    </div>
+                    <h2 className="text-xl font-semibold">Fractional Tokens Held</h2>
+                  </div>
+                  <Link href="/secondary-market" className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors">
+                    View Details
+                  </Link>
+                </div>
+
+                {/* Total Claimable */}
+                <div className="mb-6">
+                  <p className="text-gray-400 text-sm mb-1">Total claimable royalty:</p>
+                  <p className="text-3xl font-bold text-white">
+                    {claimableLoading
+                      ? "Loading..."
+                      : `${Number(formatUnits(totalClaimable, 18)).toLocaleString(undefined, { maximumFractionDigits: 6 })} ETH`}
+                  </p>
+                </div>
+
+                {fractionalHoldings.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No fractional token balance.</p>
+                    <Link href="/pools" className="inline-block mt-4 text-cyan-400 hover:text-cyan-300 text-sm">
+                      Browse Primary Market →
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {fractionalHoldings.map((p) => {
+                      const chainMeta = holdingMetaMap[p.id];
+                      const apiMeta = holdingApiMeta[p.id];
+                      const displayName = chainMeta?.name || apiMeta?.ftName || `Pool #${p.id}`;
+                      const displaySymbol = chainMeta?.symbol || apiMeta?.ftSymbol;
+                      const claimable = claimableMap[p.id] || 0n;
+
+                      return (
+                        <div key={p.id} className="bg-gray-800/50 rounded-xl p-4 space-y-3 hover:bg-gray-800/70 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-semibold text-white">{displayName}</h3>
+                              {displaySymbol && <p className="text-xs text-gray-500">{displaySymbol}</p>}
+                            </div>
+                            <span className={`text-xs px-2 py-1 rounded-full ${p.active ? "bg-green-900/40 text-green-400" : "bg-gray-700 text-gray-400"}`}>
+                              {p.active ? "Active" : "Closed"}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="bg-gray-900/50 rounded-lg p-2">
+                              <p className="text-gray-500 text-xs">Balance</p>
+                              <p className="font-medium">{Number(formatUnits(p.balance, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
+                            </div>
+                            <div className="bg-gray-900/50 rounded-lg p-2">
+                              <p className="text-gray-500 text-xs">Claimable</p>
+                              <p className="font-medium text-green-400">
+                                {claimableLoading ? "..." : `${Number(formatUnits(claimable, 18)).toLocaleString(undefined, { maximumFractionDigits: 6 })} ETH`}
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handleClaim(p.id)}
+                            disabled={claimConfirming || claimable === 0n}
+                            className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition text-sm"
+                          >
+                            {claimConfirming ? "Claiming..." : "Claim"}
+                          </button>
+
+                          {claimSuccess && <p className="text-xs text-green-400 text-center">Claimed successfully!</p>}
+                          {claimError && <p className="text-xs text-red-400 text-center truncate">Error: {claimError.message}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </GradientCard>
+          </div>
         )}
       </main>
+      </div>
     </div>
   );
 }

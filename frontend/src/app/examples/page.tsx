@@ -7,13 +7,13 @@ import { useOrders, useOrderStats } from "@/hooks/useOrderBook";
 import { formatEther } from "viem";
 
 /**
- * Example page yang menampilkan semua fitur order book system
- * Navigasi ke /examples untuk melihat
+ * Example page showcasing all order book system features
+ * Navigate to /examples to view
  */
 export default function OrderBookExamplePage() {
   const [activeTab, setActiveTab] = useState<"create" | "book" | "stats">("create");
 
-  // Example values (ganti dengan nilai real)
+  // Example values (replace with real values)
   const POOL_ID = "1";
   const FT_ADDRESS = "0x0987654321098765432109876543210987654321";
   const CHAIN_ID = 11155111; // Sepolia
@@ -21,15 +21,17 @@ export default function OrderBookExamplePage() {
   const { data: stats } = useOrderStats({ poolId: POOL_ID, ftAddress: FT_ADDRESS });
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen text-white relative">
+      <div className="fixed inset-0 z-0" style={{ backgroundImage: 'url(/purplewave.gif)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(200px)', opacity: 0.3 }} />
+      <div className="relative z-10 py-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          <h1 className="text-4xl font-bold text-white mb-2">
             Order Book System Demo
           </h1>
-          <p className="text-gray-600">
-            Off-chain buy/sell orders dengan 0.1% gas fee hanya saat transaksi terjadi
+          <p className="text-gray-300">
+            Off-chain buy/sell orders with 0.1% gas fee only when transaction occurs
           </p>
         </div>
 
@@ -96,14 +98,14 @@ export default function OrderBookExamplePage() {
           {activeTab === "create" && (
             <div className="space-y-6">
               <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-2xl font-bold mb-4">Cara Membuat Order</h2>
+                <h2 className="text-2xl font-bold mb-4">How to Create an Order</h2>
                 <ol className="list-decimal list-inside space-y-2 text-gray-700">
-                  <li>Connect wallet Anda</li>
-                  <li>Pilih BUY atau SELL</li>
-                  <li>Masukkan amount & price</li>
-                  <li>Tentukan expiry time</li>
-                  <li>Klik "Create Order"</li>
-                  <li>Transaksi done! (No gas fee)</li>
+                  <li>Connect your wallet</li>
+                  <li>Select BUY or SELL</li>
+                  <li>Enter amount & price</li>
+                  <li>Set expiry time</li>
+                  <li>Click "Create Order"</li>
+                  <li>Transaction done! (No gas fee)</li>
                 </ol>
               </div>
 
@@ -119,15 +121,15 @@ export default function OrderBookExamplePage() {
           {activeTab === "book" && (
             <div className="space-y-6">
               <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-2xl font-bold mb-4">Cara Match Orders</h2>
+                <h2 className="text-2xl font-bold mb-4">How to Match Orders</h2>
                 <ol className="list-decimal list-inside space-y-2 text-gray-700">
-                  <li>Lihat buy orders di sebelah kiri</li>
-                  <li>Lihat sell orders di sebelah kanan</li>
-                  <li>Klik buy order untuk select</li>
-                  <li>Klik sell order untuk select</li>
-                  <li>Masukkan match amount</li>
-                  <li>Preview akan show gas fee & total</li>
-                  <li>Klik "Execute Match"</li>
+                  <li>View buy orders on the left</li>
+                  <li>View sell orders on the right</li>
+                  <li>Click a buy order to select</li>
+                  <li>Click a sell order to select</li>
+                  <li>Enter match amount</li>
+                  <li>Preview will show gas fee & total</li>
+                  <li>Click "Execute Match"</li>
                 </ol>
               </div>
 
@@ -250,17 +252,18 @@ export default function OrderBookExamplePage() {
         {/* Info Box */}
         <div className="mt-12 bg-blue-50 border-l-4 border-blue-600 p-6 rounded">
           <h3 className="text-lg font-semibold text-blue-900 mb-2">
-            ℹ️ Tentang Sistem
+            ℹ️ About the System
           </h3>
           <ul className="text-blue-800 space-y-1 text-sm">
-            <li>✅ Orders disimpan di database (off-chain)</li>
-            <li>✅ Tidak ada gas fee saat membuat order</li>
-            <li>✅ Gas fee (0.1%) hanya charge saat order matching</li>
-            <li>✅ Auto-matching dengan price compatibility check</li>
+            <li>✅ Orders are stored in database (off-chain)</li>
+            <li>✅ No gas fee when creating orders</li>
+            <li>✅ Gas fee (0.1%) only charged during order matching</li>
+            <li>✅ Auto-matching with price compatibility check</li>
             <li>✅ Full order history & audit trail</li>
             <li>✅ Real-time market data & statistics</li>
           </ul>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -2,12 +2,25 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   turbopack: {},
-  webpack: (config) => {
-    config.resolve.fallback = { fs: false, net: false, tls: false };
+  reactStrictMode: true,
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
     config.externals.push("pino-pretty", "lokijs", "encoding");
     return config;
   },
-  serverExternalPackages: ["pino", "thread-stream", "@prisma/client", "prisma"],
+  serverExternalPackages: [
+    "pino",
+    "thread-stream",
+    "@prisma/client",
+    "prisma"
+  ],
   async headers() {
     return [
       {

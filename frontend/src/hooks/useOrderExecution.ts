@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useAccount, useWriteContract, usePublicClient, useReadContract } from "wagmi";
+import { useAccount, useWriteContract, usePublicClient } from "wagmi";
 import { formatEther } from "viem";
 import OrderBookABI from "@/lib/contracts/OrderBook.json";
 import { getContractAddress } from "@/lib/contracts/addresses";
@@ -58,7 +58,7 @@ export function useOrderExecution() {
         address: ftAddress,
         abi: erc20Abi,
         functionName: "approve",
-        args: [orderBookAddress, MAX_UINT256.toString()],
+        args: [orderBookAddress, MAX_UINT256],
       });
 
       console.log("Approval tx hash:", approveTxHash);

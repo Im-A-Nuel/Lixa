@@ -28,30 +28,8 @@ function looksLikeModel(mimeType?: string, filename?: string) {
   return false;
 }
 
-// Allow <model-viewer /> intrinsic element
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "model-viewer": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
-        src?: string;
-        alt?: string;
-        "camera-controls"?: boolean;
-        "touch-action"?: string;
-        "auto-rotate"?: boolean;
-        autoplay?: boolean;
-        exposure?: string | number;
-        poster?: string;
-        loading?: string;
-        reveal?: string;
-        ar?: boolean;
-      };
-    }
-  }
-}
-
 export function AssetMedia({ src, alt, mimeType, filename, className, interactive = false }: AssetMediaProps) {
   const isModel = looksLikeModel(mimeType, filename);
-  const [shouldLoadModel, setShouldLoadModel] = useState(interactive);
   const [modelScreenshot, setModelScreenshot] = useState<string | null>(null);
 
   // For 3D models, use our proxy API to avoid CORS issues
@@ -94,7 +72,7 @@ export function AssetMedia({ src, alt, mimeType, filename, className, interactiv
     }
   }, [src, candidates.length, failed]);
 
-  const handleError = (e?: any) => {
+  const handleError = () => {
     setSrcIndex((prev) => {
       const next = prev + 1;
       if (next < candidates.length) {
@@ -188,7 +166,7 @@ export function AssetMedia({ src, alt, mimeType, filename, className, interactiv
       if (process.env.NODE_ENV === 'development') {
         console.warn("[model-viewer] Error loading model:", event.detail || event);
       }
-      handleError(event);
+      handleError();
     };
 
     const onProgress = (event: any) => {

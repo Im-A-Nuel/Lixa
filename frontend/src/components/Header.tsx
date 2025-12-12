@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount } from "wagmi";
 import Link from "next/link";
 
-export default function Header(): JSX.Element {
+export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { isConnected } = useAccount();
 
   return (
     <>

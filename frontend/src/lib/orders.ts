@@ -1,9 +1,15 @@
-import { Address, Hash, TypedDataDomain, TypedDataField } from "viem";
+import { Address, TypedDataDomain } from "viem";
 
 /**
  * Offchain Order System for Bid/Ask
  * User signs message to create order, then can be matched and settled on-chain
  */
+
+// Define TypedDataField type for EIP-712
+type TypedDataField = {
+  name: string;
+  type: string;
+};
 
 export type OrderSide = "BID" | "ASK";
 export type OrderStatus = "OPEN" | "PARTIALLY_FILLED" | "FILLED" | "CANCELLED" | "EXPIRED";

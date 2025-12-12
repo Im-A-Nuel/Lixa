@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     // In production, this would:
     // 1. Call OrderBook.executeTrade() with buyer and seller signatures
     // 2. Transfer FT tokens from seller to buyer
-    // 3. Transfer ETH from buyer to seller
+    // 3. Transfer IP from buyer to seller
     // 4. Get actual transaction hash from blockchain
 
     const mockTxHash = `0x${Math.random().toString(16).slice(2)}${Math.random()

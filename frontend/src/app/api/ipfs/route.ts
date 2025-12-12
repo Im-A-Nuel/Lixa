@@ -62,7 +62,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       metadataUri: `ipfs://${metaJson.IpfsHash}`,
+      metadataURI: `ipfs://${metaJson.IpfsHash}`, // For compatibility
       imageUri,
+      ipfsHash: fileJson.IpfsHash, // Return the CID of the actual file
+      IpfsHash: fileJson.IpfsHash, // For compatibility
+      cid: fileJson.IpfsHash, // Standard CID field
     });
   } catch (err) {
     console.error("IPFS upload error", err);

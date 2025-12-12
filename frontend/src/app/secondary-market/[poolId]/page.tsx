@@ -3,7 +3,7 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { formatEther, formatUnits, parseUnits, parseEther } from "viem";
 import { getContractAddress } from "@/lib/contracts/addresses";
 import FractionalizerABI from "@/lib/contracts/Fractionalizer.json";
@@ -36,6 +36,7 @@ const ERC20_ABI = [
 
 export default function TokenDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const poolId = params?.poolId ? Number(params.poolId) : null;
   const { chainId, address, isConnected } = useAccount();
   const fractionalizerAddress = chainId ? getContractAddress(chainId, "Fractionalizer") : undefined;
@@ -84,36 +85,36 @@ export default function TokenDetailPage() {
     let isMounted = true;
     metaFetchedRef.current = true;
 
-    const fetch = async () => {
+    const fetchMeta = async () => {
       try {
         const res = await fetch(`/api/token/details?ftAddress=${pool.ftAddress}&poolId=${poolId}`);
         if (res.ok && isMounted) {
           const data = await res.json();
           setTokenMeta({
-            ftName: data.ftName ?? undefined,
-            ftSymbol: data.ftSymbol ?? undefined,
+            ftName: data.ftName ?? "",
+            ftSymbol: data.ftSymbol ?? "",
             imageUrl: data.imageUrl,
             description: data.description,
           });
         } else if (isMounted) {
           // Set default on error
           setTokenMeta({
-            ftName: undefined,
-            ftSymbol: undefined,
+            ftName: "",
+            ftSymbol: "",
           });
         }
       } catch (err) {
         // Silently fail - use default values
         if (isMounted) {
           setTokenMeta({
-            ftName: undefined,
-            ftSymbol: undefined,
+            ftName: "",
+            ftSymbol: "",
           });
         }
       }
     };
 
-    fetch();
+    fetchMeta();
 
     return () => {
       isMounted = false;
@@ -328,7 +329,7 @@ export default function TokenDetailPage() {
 
     let isMounted = true;
 
-    const fetch = async () => {
+    const fetchStats = async () => {
       try {
         const res = await fetch(`/api/token/stats?ftAddress=${pool.ftAddress}`);
         if (res.ok && isMounted) {
@@ -346,13 +347,13 @@ export default function TokenDetailPage() {
     // Only fetch on first load
     if (!statsFetchedRef.current) {
       statsFetchedRef.current = true;
-      fetch();
+      fetchStats();
     }
 
     // Refresh stats every 30 seconds (but don't log errors)
     const interval = setInterval(() => {
       if (isMounted) {
-        fetch();
+        fetchStats();
       }
     }, 30000);
 
@@ -584,22 +585,35 @@ export default function TokenDetailPage() {
       <MarketplaceNav />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Token Header */}
-        <div className="flex items-center gap-6 mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white text-4xl font-bold">
-            {displayMeta.ftSymbol?.charAt(0) || "T"}
-          </div>
-          <div>
-            <h1 className="text-4xl font-bold">{displayMeta.ftName}</h1>
-            <p className="text-gray-400 text-lg">{displayMeta.ftSymbol}</p>
-            <div className="flex gap-4 mt-2">
-              <div>
-                <p className="text-xs text-gray-500">Trades (settled)</p>
-                <p className="text-2xl font-bold">{trades.length}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">FT Address</p>
-                <p className="text-sm font-mono text-gray-200 break-all">{pool.ftAddress}</p>
+        {/* Back Button */}
+        <button
+          onClick={() => router.back()}
+          className="mb-6 flex items-center gap-2 px-4 py-2 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 rounded-lg transition-all text-gray-300 hover:text-white"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span className="font-semibold text-sm">Back</span>
+        </button>
+
+        {/* Token Header - Compact & Modern */}
+        <div className="bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800 rounded-2xl p-6 mb-6">
+          <div className="flex items-start gap-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+              {displayMeta.ftSymbol?.charAt(0) || "T"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-3xl font-bold mb-1">{displayMeta.ftName}</h1>
+              <p className="text-gray-400 text-sm mb-3">{displayMeta.ftSymbol}</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="bg-gray-800/50 rounded-lg p-3">
+                  <p className="text-xs text-gray-500 mb-1">Trades (settled)</p>
+                  <p className="text-xl font-bold">{trades.length}</p>
+                </div>
+                <div className="bg-gray-800/50 rounded-lg p-3 col-span-2">
+                  <p className="text-xs text-gray-500 mb-1">FT Address</p>
+                  <p className="text-xs font-mono text-gray-300 truncate">{pool.ftAddress}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -609,8 +623,8 @@ export default function TokenDetailPage() {
           {/* Left: Order Form & Book */}
           <div className="md:col-span-2 space-y-6">
             {/* Order Form */}
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
-              <h2 className="text-xl font-bold">Place Order</h2>
+            <div className="bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800 rounded-xl p-5 space-y-4">
+              <h2 className="text-lg font-bold">Place Order</h2>
 
               {orderMessage && (
                 <div className={`text-sm p-3 rounded ${
@@ -622,19 +636,23 @@ export default function TokenDetailPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setOrderSide("BUY")}
-                  className={`py-2 rounded font-semibold transition ${
-                    orderSide === "BUY" ? "bg-green-600" : "bg-gray-800 hover:bg-gray-700"
+                  className={`py-3 rounded-lg font-semibold transition-all ${
+                    orderSide === "BUY"
+                      ? "bg-green-600 shadow-lg shadow-green-500/20"
+                      : "bg-gray-800 hover:bg-gray-700 border border-gray-700"
                   }`}
                 >
                   BUY
                 </button>
                 <button
                   onClick={() => setOrderSide("SELL")}
-                  className={`py-2 rounded font-semibold transition ${
-                    orderSide === "SELL" ? "bg-red-600" : "bg-gray-800 hover:bg-gray-700"
+                  className={`py-3 rounded-lg font-semibold transition-all ${
+                    orderSide === "SELL"
+                      ? "bg-red-600 shadow-lg shadow-red-500/20"
+                      : "bg-gray-800 hover:bg-gray-700 border border-gray-700"
                   }`}
                 >
                   SELL
@@ -642,37 +660,37 @@ export default function TokenDetailPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm text-gray-400">Amount (tokens)</label>
+                <label className="block text-sm font-semibold text-gray-300">Amount (tokens)</label>
                 <input
                   type="number"
                   value={orderAmount}
                   onChange={(e) => setOrderAmount(e.target.value)}
                   step="0.0001"
                   min="0"
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm text-gray-400">Price per Token (ETH)</label>
+                <label className="block text-sm font-semibold text-gray-300">Price per Token (IP)</label>
                 <input
                   type="number"
                   value={orderPrice}
                   onChange={(e) => setOrderPrice(e.target.value)}
                   step="0.00001"
                   min="0"
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm text-gray-400">Expiry (days)</label>
+                <label className="block text-sm font-semibold text-gray-300">Expiry (days)</label>
                 <input
                   type="number"
                   value={expiryDays}
                   onChange={(e) => setExpiryDays(e.target.value)}
                   min="1"
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
                 />
               </div>
 
@@ -700,19 +718,19 @@ export default function TokenDetailPage() {
                   (orderSide === "SELL" && loadingBalance) ||
                   (orderSide === "SELL" && parseFloat(orderAmount) > parseFloat(tokenBalance))
                 }
-                className={`w-full py-3 font-bold rounded-lg transition ${
+                className={`w-full py-3.5 font-bold rounded-lg transition-all ${
                   orderSide === "BUY"
-                    ? "bg-green-600 hover:bg-green-700 disabled:bg-gray-700"
-                    : "bg-red-600 hover:bg-red-700 disabled:bg-gray-700"
-                }`}
+                    ? "bg-green-600 hover:bg-green-700 disabled:bg-gray-700 shadow-lg shadow-green-500/30 hover:shadow-green-500/50 disabled:shadow-none"
+                    : "bg-red-600 hover:bg-red-700 disabled:bg-gray-700 shadow-lg shadow-red-500/30 hover:shadow-red-500/50 disabled:shadow-none"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {creatingOrder ? "Creating..." : loadingBalance ? "Checking Balance..." : `${orderSide} NOW`}
               </button>
             </div>
 
             {/* Order Book */}
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
-              <h2 className="text-xl font-bold">Order Book</h2>
+            <div className="bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800 rounded-xl p-5 space-y-4">
+              <h2 className="text-lg font-bold">Order Book</h2>
 
               <div className="grid md:grid-cols-2 gap-4">
                 {/* Sell Orders */}
@@ -730,7 +748,7 @@ export default function TokenDetailPage() {
                           </div>
                           <div className="flex justify-between">
                             <span>Price:</span>
-                            <span>{formatEthValue(order.pricePerToken)} ETH</span>
+                            <span>{formatEthValue(order.pricePerToken)} IP</span>
                           </div>
                           <div className="flex justify-between text-xs text-gray-500">
                             <span>by {order.userAddress.slice(0, 10)}...</span>
@@ -765,7 +783,7 @@ export default function TokenDetailPage() {
                           </div>
                           <div className="flex justify-between">
                             <span>Price:</span>
-                            <span>{formatEthValue(order.pricePerToken)} ETH</span>
+                            <span>{formatEthValue(order.pricePerToken)} IP</span>
                           </div>
                           <div className="flex justify-between text-xs text-gray-500">
                             <span>by {order.userAddress.slice(0, 10)}...</span>
@@ -791,10 +809,10 @@ export default function TokenDetailPage() {
           {/* Right: Trading Activity & Pool Info */}
           <div className="space-y-6">
             {/* Pending Matches - settle via wallet */}
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
+            <div className="bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800 rounded-xl p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">Pending Settlement</h2>
-                <span className="text-xs text-gray-500">wallet only</span>
+                <h2 className="text-lg font-bold">Pending Settlement</h2>
+                <span className="text-xs px-2 py-1 bg-gray-800 rounded text-gray-400">wallet only</span>
               </div>
 
               {settlementMessage && (
@@ -823,7 +841,7 @@ export default function TokenDetailPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Price:</span>
-                        <span className="font-semibold">{formatEthValue(match.matchedPrice)} ETH</span>
+                        <span className="font-semibold">{formatEthValue(match.matchedPrice)} IP</span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-500">
                         <span>Buyer {match.buyerAddress.slice(0, 6)}...</span>
@@ -849,8 +867,8 @@ export default function TokenDetailPage() {
             </div>
 
             {/* Trading Activity */}
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
-              <h2 className="text-xl font-bold">Trading Activity</h2>
+            <div className="bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800 rounded-xl p-5 space-y-4">
+              <h2 className="text-lg font-bold">Trading Activity</h2>
               <div className="space-y-2 max-h-96 overflow-auto">
                 {tradesLoading ? (
                   <p className="text-sm text-gray-500">Loading...</p>
@@ -858,7 +876,6 @@ export default function TokenDetailPage() {
                   <p className="text-sm text-gray-500">No trades yet</p>
                 ) : (
                   trades
-                    .filter((t) => t.poolId === String(poolId))
                     .slice(0, 20)
                     .map((trade) => (
                     <div key={trade.id} className="bg-gray-800 rounded p-3 space-y-1 text-sm">
@@ -884,8 +901,8 @@ export default function TokenDetailPage() {
             </div>
 
             {/* Pool Info */}
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-3">
-              <h2 className="text-xl font-bold">Pool Info</h2>
+            <div className="bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800 rounded-xl p-5 space-y-3">
+              <h2 className="text-lg font-bold">Pool Info</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-400">Pool ID:</span>

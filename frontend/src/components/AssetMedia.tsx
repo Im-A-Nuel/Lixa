@@ -28,7 +28,7 @@ function looksLikeModel(mimeType?: string, filename?: string) {
   return false;
 }
 
-// Allow <model-viewer /> intrinsic element without adding types package
+// Allow <model-viewer /> intrinsic element
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -50,8 +50,6 @@ declare global {
 }
 
 export function AssetMedia({ src, alt, mimeType, filename, className, interactive = false }: AssetMediaProps) {
-  if (!src) return null;
-
   const isModel = looksLikeModel(mimeType, filename);
   const [shouldLoadModel, setShouldLoadModel] = useState(interactive);
   const [modelScreenshot, setModelScreenshot] = useState<string | null>(null);
@@ -59,8 +57,19 @@ export function AssetMedia({ src, alt, mimeType, filename, className, interactiv
   // For 3D models, use our proxy API to avoid CORS issues
   // For images, try proxy as fallback after direct gateways
   const candidates = useMemo(() => {
+    if (!src || src.trim() === '') return [];
+
+    // Validate IPFS source format
     if (src.startsWith("ipfs://")) {
-      const cid = src.replace("ipfs://", "");
+      const cid = src.replace("ipfs://", "").trim();
+      if (!cid || cid.length < 10) {
+        // Invalid or too short CID
+        if (process.env.NODE_ENV === 'development') {
+          console.warn("[AssetMedia] Invalid IPFS CID:", src);
+        }
+        return [];
+      }
+
       if (isModel) {
         // Models need proxy first due to CORS
         return [`/api/proxy-ipfs?cid=${cid}`];
@@ -75,17 +84,29 @@ export function AssetMedia({ src, alt, mimeType, filename, className, interactiv
   const [srcIndex, setSrcIndex] = useState(0);
   const [failed, setFailed] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const currentSrc = candidates[srcIndex] || src;
+  const currentSrc = candidates[srcIndex] || src || "";
   const modelViewerRef = useRef<HTMLElement>(null);
 
+  // Set failed state if no valid candidates (invalid src)
+  useEffect(() => {
+    if (src && candidates.length === 0 && !failed) {
+      setFailed(true);
+    }
+  }, [src, candidates.length, failed]);
+
   const handleError = (e?: any) => {
-    // Log failing source to help debug gateway issues.
-    console.error("AssetMedia failed to load", { src: currentSrc, error: e });
     setSrcIndex((prev) => {
       const next = prev + 1;
       if (next < candidates.length) {
-        console.log(`Switching to fallback #${next}: ${candidates[next]}`);
+        // Only log as warning when trying fallbacks (not an error, this is expected)
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Gateway failed, trying fallback #${next}/${candidates.length}`, currentSrc);
+        }
         return next;
+      }
+      // Only log warning when ALL gateways have failed (not error, as this may be expected for some assets)
+      if (process.env.NODE_ENV === 'development' && src && candidates.length > 0) {
+        console.warn("All IPFS gateways failed to load asset", { src, tried: candidates.length });
       }
       setFailed(true);
       return prev;
@@ -93,7 +114,9 @@ export function AssetMedia({ src, alt, mimeType, filename, className, interactiv
   };
 
   const handleLoaded = () => {
-    console.log("AssetMedia loaded successfully", { src: currentSrc });
+    if (process.env.NODE_ENV === 'development') {
+      console.log("AssetMedia loaded successfully", { src: currentSrc });
+    }
     setIsLoaded(true);
   };
 
@@ -119,11 +142,79 @@ export function AssetMedia({ src, alt, mimeType, filename, className, interactiv
     if (!isModel || isLoaded || failed) return;
     if (srcIndex >= candidates.length - 1) return;
     const timer = setTimeout(() => {
-      console.warn("AssetMedia load timeout, switching gateway", { src: currentSrc });
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("AssetMedia load timeout, switching gateway", { src: currentSrc });
+      }
       handleError();
     }, 45000); // Increased timeout for large 3D models (45s)
     return () => clearTimeout(timer);
   }, [isModel, isLoaded, failed, srcIndex, candidates.length, currentSrc]);
+
+  // Listen for model-viewer events and capture screenshot for preview
+  useEffect(() => {
+    if (!isModel || typeof window === "undefined" || !modelViewerRef.current) return;
+
+    const viewer = modelViewerRef.current;
+
+    const onModelLoad = () => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log("[model-viewer] Model loaded successfully");
+      }
+
+      // Capture screenshot after model loads (only if not already captured)
+      if (!modelScreenshot) {
+        setTimeout(() => {
+          try {
+            const canvas = (viewer as any).getCanvas?.();
+            if (canvas) {
+              const screenshot = canvas.toDataURL("image/png");
+              setModelScreenshot(screenshot);
+              if (process.env.NODE_ENV === 'development') {
+                console.log("[model-viewer] Screenshot captured");
+              }
+            }
+          } catch (error) {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn("[model-viewer] Failed to capture screenshot:", error);
+            }
+          }
+        }, 500);
+      }
+
+      handleLoaded();
+    };
+
+    const onModelError = (event: any) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("[model-viewer] Error loading model:", event.detail || event);
+      }
+      handleError(event);
+    };
+
+    const onProgress = (event: any) => {
+      if (process.env.NODE_ENV === 'development' && event.detail && event.detail.totalProgress !== undefined) {
+        const progress = (event.detail.totalProgress * 100).toFixed(1);
+        console.log(`[model-viewer] Loading progress: ${progress}%`);
+      }
+    };
+
+    viewer.addEventListener("load", onModelLoad);
+    viewer.addEventListener("error", onModelError);
+    viewer.addEventListener("progress", onProgress);
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log("[model-viewer] Event listeners attached, loading from:", currentSrc);
+    }
+
+    return () => {
+      viewer.removeEventListener("load", onModelLoad);
+      viewer.removeEventListener("error", onModelError);
+      viewer.removeEventListener("progress", onProgress);
+    };
+  }, [isModel, currentSrc, modelViewerRef.current]);
+
+  // Early return AFTER all hooks are called
+  if (!src) return null;
 
   if (failed) {
     return (
@@ -140,59 +231,6 @@ export function AssetMedia({ src, alt, mimeType, filename, className, interactiv
       </div>
     );
   }
-
-  // Listen for model-viewer events and capture screenshot for preview
-  useEffect(() => {
-    if (!isModel || typeof window === "undefined" || !modelViewerRef.current) return;
-
-    const viewer = modelViewerRef.current;
-
-    const onModelLoad = () => {
-      console.log("[model-viewer] Model loaded successfully");
-
-      // Capture screenshot after model loads (only if not already captured)
-      if (!modelScreenshot) {
-        setTimeout(() => {
-          try {
-            const canvas = (viewer as any).getCanvas?.();
-            if (canvas) {
-              const screenshot = canvas.toDataURL("image/png");
-              setModelScreenshot(screenshot);
-              console.log("[model-viewer] Screenshot captured");
-            }
-          } catch (error) {
-            console.warn("[model-viewer] Failed to capture screenshot:", error);
-          }
-        }, 500);
-      }
-
-      handleLoaded();
-    };
-
-    const onModelError = (event: any) => {
-      console.error("[model-viewer] Error loading model:", event.detail || event);
-      handleError(event);
-    };
-
-    const onProgress = (event: any) => {
-      if (event.detail && event.detail.totalProgress !== undefined) {
-        const progress = (event.detail.totalProgress * 100).toFixed(1);
-        console.log(`[model-viewer] Loading progress: ${progress}%`);
-      }
-    };
-
-    viewer.addEventListener("load", onModelLoad);
-    viewer.addEventListener("error", onModelError);
-    viewer.addEventListener("progress", onProgress);
-
-    console.log("[model-viewer] Event listeners attached, loading from:", currentSrc);
-
-    return () => {
-      viewer.removeEventListener("load", onModelLoad);
-      viewer.removeEventListener("error", onModelError);
-      viewer.removeEventListener("progress", onProgress);
-    };
-  }, [isModel, currentSrc, modelViewerRef.current]);
 
   if (isModel) {
     // Non-interactive mode: show static preview after screenshot is ready

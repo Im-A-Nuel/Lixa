@@ -151,7 +151,7 @@ model License {
   licenseType String @default("NON_EXCLUSIVE") // NON_EXCLUSIVE | EXCLUSIVE | DERIVATIVE
 
   // License Details
-  price     String   // Price paid in wei (ETH)
+  price     String   // Price paid in wei (IP)
   txHash    String?  // Transaction hash if bought on-chain
   status    String   @default("ACTIVE") // ACTIVE, REVOKED, EXPIRED
   uri       String?
@@ -164,4 +164,47 @@ model License {
   @@index([buyer])
   @@index([assetId])
   @@index([status])
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+
+  // On-chain Asset Info
+  assetId   Int?     @unique // Asset ID from on-chain registry (null if not yet registered)
+  creator   String   // Creator wallet address
+
+  // File Deduplication - Multi-layer detection
+  ipfsCid   String   @unique // IPFS CID - same file = same CID (exact duplicate detection)
+  fileHash  String   // SHA-256 hash of file content (exact duplicate verification)
+  fileName  String   // Original file name
+  fileSize  Int      // File size in bytes
+  mimeType  String   // MIME type (model/gltf, image/png, audio/mp3, etc.)
+
+  // Near-Duplicate Detection (Perceptual Hashing)
+  perceptualHash String? // pHash for images, Chromaprint for audio, geometric hash for 3D
+  perceptualType String? // Type: "phash", "dhash", "chromaprint", "geometric"
+
+  // Canonicalization Info
+  canonicalWidth  Int?    // Width after canonicalization (for images)
+  canonicalHeight Int?    // Height after canonicalization (for images)
+  canonicalFormat String? // Format after canonicalization
+
+  // IPFS & Metadata
+  ipfsHash  String?  // Deprecated: use ipfsCid instead
+  metadataURI String? // IPFS URI of metadata JSON
+
+  // Status
+  status    String   @default("UPLOADED") // UPLOADED, REGISTERED, REJECTED, DUPLICATE_FLAGGED
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([creator])
+  @@index([ipfsCid])
+  @@index([fileHash])
+  @@index([perceptualHash])
+  @@index([status])
+  @@index([assetId])
+  @@index([mimeType])
 }

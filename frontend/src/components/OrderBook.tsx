@@ -209,7 +209,7 @@ export function OrderBook({ poolId, ftAddress }: OrderBookProps) {
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Match Amount (ETH)
+                Match Amount (IP)
               </label>
               <input
                 type="number"
@@ -230,25 +230,25 @@ export function OrderBook({ poolId, ftAddress }: OrderBookProps) {
                 <div>
                   <p className="text-gray-600">Matched Price</p>
                   <p className="font-bold text-lg text-blue-600">
-                    {formatEther(BigInt(preview.preview.matchedPrice))} ETH
+                    {formatEther(BigInt(preview.preview.matchedPrice))} IP
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-600">Gas Fee (0.1%)</p>
                   <p className="font-bold text-lg text-orange-600">
-                    {formatEther(BigInt(preview.preview.gasFeeAmount))} ETH
+                    {formatEther(BigInt(preview.preview.gasFeeAmount))} IP
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-600">Total Cost</p>
                   <p className="font-bold text-lg">
-                    {formatEther(BigInt(preview.preview.totalCost))} ETH
+                    {formatEther(BigInt(preview.preview.totalCost))} IP
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-600">Buyer Saves</p>
                   <p className="font-bold text-lg text-green-600">
-                    {formatEther(BigInt(preview.preview.buyerSaves))} ETH
+                    {formatEther(BigInt(preview.preview.buyerSaves))} IP
                   </p>
                 </div>
               </div>

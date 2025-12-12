@@ -21,7 +21,7 @@ export interface OffchainOrder {
 
   // Amount and price
   amount: bigint; // Token amount (18 decimals)
-  pricePerToken: bigint; // Price per token (in ETH, 18 decimals)
+  pricePerToken: bigint; // Price per token (in IP, 18 decimals)
 
   // Timing
   createdAt: number; // Unix timestamp
@@ -38,7 +38,7 @@ export interface OffchainOrder {
 
 export interface BidOrder extends OffchainOrder {
   side: "BID";
-  // Buyer offers ETH to buy FT
+  // Buyer offers IP to buy FT
 }
 
 export interface AskOrder extends OffchainOrder {

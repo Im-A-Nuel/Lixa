@@ -41,7 +41,7 @@ export function useSpotTrading() {
           chainId,
         } = params;
 
-        // Calculate total value for ETH transfer
+        // Calculate total value for IP transfer
         const amountWei = parseUnits(matchAmount, 18);
         const priceWei = parseUnits(pricePerToken, 18);
         const totalValue = (amountWei * priceWei) / BigInt(1e18);
@@ -57,7 +57,7 @@ export function useSpotTrading() {
         // In real implementation, this would:
         // 1. Call OrderBook.executeTrade() with signatures
         // 2. Transfer FT from seller to buyer
-        // 3. Transfer ETH from buyer to seller
+        // 3. Transfer IP from buyer to seller
         // 4. Record tx hash in database
 
         // For now, simulate the on-chain execution

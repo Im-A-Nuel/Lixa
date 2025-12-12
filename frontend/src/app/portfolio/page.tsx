@@ -18,6 +18,8 @@ import LicenseNFTABI from "@/lib/contracts/LicenseNFT.json";
 import LicenseManagerABI from "@/lib/contracts/LicenseManager.json";
 import { MarketplaceNav } from "@/components/MarketplaceNav";
 import { ipfsHttpGateways } from "@/lib/ipfs";
+import { getUserFriendlyError } from "@/lib/walletErrors";
+import { AssetMedia } from "@/components/AssetMedia";
 
 const ERC20_ABI = [
   {
@@ -43,17 +45,29 @@ const ERC20_ABI = [
   },
 ];
 
+type TabType = "myAssets" | "licenses" | "fractional";
+type AssetCategory = "all" | "3d" | "image" | "audio";
+
 export default function PortfolioPage() {
   const { address, chainId, isConnected } = useAccount();
   const registryAddress = chainId ? getContractAddress(chainId, "AssetRegistry") : undefined;
   const fractionalizerAddress = chainId ? getContractAddress(chainId, "Fractionalizer") : undefined;
   const licenseNftAddress = chainId ? getContractAddress(chainId, "LicenseNFT") : undefined;
   const licenseManagerAddress = chainId ? getContractAddress(chainId, "LicenseManager") : undefined;
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<TabType>("myAssets");
+  const [assetCategory, setAssetCategory] = useState<AssetCategory>("all");
+
+  // License state
   const [ownedLicenses, setOwnedLicenses] = useState<
     { tokenId: bigint; name?: string; description?: string; licenseType?: string; offerId?: string; assetId?: string; uri?: string; image?: string }[]
   >([]);
   const [loadingLicenses, setLoadingLicenses] = useState(false);
   const [licenseError, setLicenseError] = useState<string | null>(null);
+
+  // Asset metadata state
+  const [assetMetadata, setAssetMetadata] = useState<Record<number, any>>({});
 
   // Registered assets
   const { data: totalAssets } = useReadContract({
@@ -66,7 +80,7 @@ export default function PortfolioPage() {
     if (!registryAddress || !totalAssets || totalAssets === 0n) return [];
     return Array.from({ length: Number(totalAssets) }, (_, idx) => ({
       address: registryAddress,
-      abi: AssetRegistryABI,
+      abi: AssetRegistryABI as any,
       functionName: "getAsset",
       args: [BigInt(idx + 1)],
     }));
@@ -80,15 +94,68 @@ export default function PortfolioPage() {
   const registeredAssets = useMemo(() => {
     if (!assetsData || !address) return [];
     return assetsData
-      .map((entry) => {
+      .map((entry, idx) => {
         if (!entry || entry.status !== "success") return null;
         const a: any = entry.result;
         if (!a?.exists) return null;
         if (a.creator.toLowerCase() !== address.toLowerCase()) return null;
-        return a;
+        return { ...a, assetId: idx + 1 };
       })
       .filter(Boolean) as any[];
   }, [assetsData, address]);
+
+  // Fetch asset metadata
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      if (registeredAssets.length === 0) return;
+
+      const metadataMap: Record<number, any> = {};
+      for (const asset of registeredAssets) {
+        try {
+          const gateways = ipfsHttpGateways(asset.metadataURI);
+          for (const gateway of gateways) {
+            try {
+              const res = await fetch(gateway);
+              if (!res.ok) continue;
+              const json = await res.json();
+              metadataMap[asset.assetId] = json;
+              break;
+            } catch {
+              continue;
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to fetch metadata for asset ${asset.assetId}`, error);
+        }
+      }
+      setAssetMetadata(metadataMap);
+    };
+
+    fetchMetadata();
+  }, [registeredAssets]);
+
+  // Categorize assets by type
+  const categorizedAssets = useMemo(() => {
+    const metadata = assetMetadata;
+    return {
+      all: registeredAssets,
+      "3d": registeredAssets.filter((a) => {
+        const meta = metadata[a.assetId];
+        const mimeType = meta?.properties?.mimeType || "";
+        return mimeType.startsWith("model/") || mimeType === "application/octet-stream";
+      }),
+      image: registeredAssets.filter((a) => {
+        const meta = metadata[a.assetId];
+        const mimeType = meta?.properties?.mimeType || "";
+        return mimeType.startsWith("image/");
+      }),
+      audio: registeredAssets.filter((a) => {
+        const meta = metadata[a.assetId];
+        const mimeType = meta?.properties?.mimeType || "";
+        return mimeType.startsWith("audio/");
+      }),
+    };
+  }, [registeredAssets, assetMetadata]);
 
   // Fractional holdings
   const { data: totalPools } = useReadContract({
@@ -101,7 +168,7 @@ export default function PortfolioPage() {
     if (!fractionalizerAddress || !totalPools || totalPools === 0n) return [];
     return Array.from({ length: Number(totalPools) }, (_, idx) => ({
       address: fractionalizerAddress,
-      abi: FractionalizerABI,
+      abi: FractionalizerABI as any,
       functionName: "poolInfo",
       args: [BigInt(idx + 1)],
     }));
@@ -111,6 +178,62 @@ export default function PortfolioPage() {
     contracts: poolQueries,
     query: { enabled: poolQueries.length > 0 },
   });
+
+  const balanceQueries = useMemo(() => {
+    if (!poolData || !address) return [];
+    return poolData.map((entry) => {
+      if (!entry || entry.status !== "success") return null;
+      const [, , ftAddress] = entry.result as any;
+      return {
+        address: ftAddress as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: "balanceOf",
+        args: [address],
+      };
+    }).filter(Boolean) as any[];
+  }, [poolData, address]);
+
+  const { data: balancesData } = useReadContracts({
+    contracts: balanceQueries,
+    query: { enabled: balanceQueries.length > 0 },
+  });
+
+  const fractionalHoldings = useMemo(() => {
+    if (!poolData || !balancesData) return [];
+    return poolData
+      .map((entry, idx) => {
+        if (!entry || entry.status !== "success") return null;
+        if (!balancesData[idx] || balancesData[idx].status !== "success") return null;
+        const bal = balancesData[idx].result as bigint;
+        if (bal === 0n) return null;
+        const [nftContract, tokenId, ftAddress, totalFractions, originalOwner, , amountForSale, sold, active] =
+          entry.result as any;
+        return {
+          id: idx + 1,
+          nftContract,
+          tokenId,
+          ftAddress,
+          totalFractions,
+          originalOwner,
+          amountForSale,
+          sold,
+          active,
+          balance: bal,
+        };
+      })
+      .filter(Boolean) as {
+      id: number;
+      nftContract: string;
+      tokenId: bigint;
+      ftAddress: string;
+      totalFractions: bigint;
+      originalOwner: string;
+      amountForSale: bigint;
+      sold: bigint;
+      active: boolean;
+      balance: bigint;
+    }[];
+  }, [poolData, balancesData]);
 
   // License NFTs owned (on-chain)
   const { data: licenseTokenIds, isLoading: loadingLicenseIds } = useReadContract({
@@ -125,7 +248,7 @@ export default function PortfolioPage() {
     if (!licenseTokenIds || !Array.isArray(licenseTokenIds)) return [];
     return (licenseTokenIds as bigint[]).map((tid) => ({
       address: licenseNftAddress as `0x${string}`,
-      abi: LicenseNFTABI.abi,
+      abi: LicenseNFTABI.abi as any,
       functionName: "tokenURI",
       args: [tid],
     }));
@@ -199,200 +322,7 @@ export default function PortfolioPage() {
     fetchMeta();
   }, [licenseTokenIds, licenseUris, address]);
 
-  // Fetch asset details for licenses (to get asset metadata URI for download)
-  const licenseOfferIds = useMemo(() => {
-    return Array.from(
-      new Set(
-        ownedLicenses
-          .map((l) => (l.offerId ? Number(l.offerId) : null))
-          .filter((v): v is number => v !== null && !Number.isNaN(v))
-      )
-    );
-  }, [ownedLicenses]);
-
-  const offerQueries = useMemo(() => {
-    if (!licenseManagerAddress || licenseOfferIds.length === 0) return [];
-    return licenseOfferIds.map((oid) => ({
-      address: licenseManagerAddress,
-      abi: LicenseManagerABI,
-      functionName: "offers",
-      args: [BigInt(oid)],
-    }));
-  }, [licenseManagerAddress, licenseOfferIds]);
-
-  const { data: offerData } = useReadContracts({
-    contracts: offerQueries,
-    query: { enabled: offerQueries.length > 0 },
-  });
-
-  const offerAssetMap = useMemo(() => {
-    if (!offerData) return {};
-    const map: Record<number, number> = {};
-    offerData.forEach((entry, idx) => {
-      if (!entry || entry.status !== "success") return;
-      const oid = licenseOfferIds[idx];
-      const offer: any = entry.result;
-      const assetId = Number(offer[1]);
-      if (!Number.isNaN(assetId)) map[oid] = assetId;
-    });
-    return map;
-  }, [offerData, licenseOfferIds]);
-
-  const licenseAssetIds = useMemo(() => {
-    return Array.from(
-      new Set(
-        ownedLicenses
-          .map((l) => {
-            if (l.assetId) return Number(l.assetId);
-            if (l.offerId && offerAssetMap[Number(l.offerId)]) return offerAssetMap[Number(l.offerId)];
-            return null;
-          })
-          .filter((v): v is number => v !== null && !Number.isNaN(v))
-      )
-    );
-  }, [ownedLicenses, offerAssetMap]);
-
-  const assetDetailQueries = useMemo(() => {
-    if (!registryAddress || licenseAssetIds.length === 0) return [];
-    return licenseAssetIds.map((aid) => ({
-      address: registryAddress,
-      abi: AssetRegistryABI,
-      functionName: "getAsset",
-      args: [BigInt(aid)],
-    }));
-  }, [registryAddress, licenseAssetIds]);
-
-  const { data: assetDetailsData } = useReadContracts({
-    contracts: assetDetailQueries,
-    query: { enabled: assetDetailQueries.length > 0 },
-  });
-
-  const [assetMediaMap, setAssetMediaMap] = useState<Record<number, { metadataURI?: string; image?: string; filename?: string; mimeType?: string }>>({});
-
-  useEffect(() => {
-    const fetchAssets = async () => {
-      if (!assetDetailsData) return;
-      const next: Record<number, { metadataURI?: string; image?: string; filename?: string; mimeType?: string }> = {};
-
-      for (let i = 0; i < assetDetailsData.length; i++) {
-        const entry = assetDetailsData[i];
-        if (!entry || entry.status !== "success") continue;
-        const assetId = licenseAssetIds[i];
-        const asset: any = entry.result;
-        const metadataURI = asset?.metadataURI as string | undefined;
-        next[assetId] = { metadataURI };
-        if (metadataURI) {
-          const gateways = ipfsHttpGateways(metadataURI);
-          for (const g of gateways) {
-            try {
-              const res = await fetch(g);
-              if (!res.ok) continue;
-              const json = await res.json();
-              next[assetId].image = json?.image;
-              next[assetId].filename = json?.properties?.filename || json?.filename;
-              next[assetId].mimeType = json?.properties?.mimeType || json?.mimeType;
-              break;
-            } catch {
-              continue;
-            }
-          }
-        }
-      }
-
-      setAssetMediaMap(next);
-    };
-    fetchAssets();
-  }, [assetDetailsData, licenseAssetIds]);
-
-  const balanceQueries = useMemo(() => {
-    if (!poolData || !address) return [];
-    return poolData.map((entry) => {
-      if (!entry || entry.status !== "success") return null;
-      const [, , ftAddress] = entry.result as any;
-      return {
-        address: ftAddress as `0x${string}`,
-        abi: ERC20_ABI,
-        functionName: "balanceOf",
-        args: [address],
-      };
-    }).filter(Boolean) as any[];
-  }, [poolData, address]);
-
-  const { data: balancesData } = useReadContracts({
-    contracts: balanceQueries,
-    query: { enabled: balanceQueries.length > 0 },
-  });
-
-  const fractionalHoldings = useMemo(() => {
-    if (!poolData || !balancesData) return [];
-    return poolData
-      .map((entry, idx) => {
-        if (!entry || entry.status !== "success") return null;
-        if (!balancesData[idx] || balancesData[idx].status !== "success") return null;
-        const bal = balancesData[idx].result as bigint;
-        if (bal === 0n) return null;
-        const [nftContract, tokenId, ftAddress, totalFractions, originalOwner, , amountForSale, sold, active] =
-          entry.result as any;
-        return {
-          id: idx + 1,
-          nftContract,
-          tokenId,
-          ftAddress,
-          totalFractions,
-          originalOwner,
-          amountForSale,
-          sold,
-          active,
-          balance: bal,
-        };
-      })
-      .filter(Boolean) as {
-      id: number;
-      nftContract: string;
-      tokenId: bigint;
-      ftAddress: string;
-      totalFractions: bigint;
-      originalOwner: string;
-      amountForSale: bigint;
-      sold: bigint;
-      active: boolean;
-      balance: bigint;
-    }[];
-  }, [poolData, balancesData]);
-
-  const { writeContract, data: claimHash, error: claimError } = useWriteContract();
-  const { isLoading: claimConfirming, isSuccess: claimSuccess } = useWaitForTransactionReceipt({ hash: claimHash });
-
-  const claimableQueries = useMemo(() => {
-    if (!fractionalizerAddress || !address || fractionalHoldings.length === 0) return [];
-    return fractionalHoldings.map((holding) => ({
-      address: fractionalizerAddress,
-      abi: FractionalizerABI,
-      functionName: "claimableAmount",
-      args: [BigInt(holding.id), address],
-    }));
-  }, [fractionalizerAddress, address, fractionalHoldings]);
-
-  const { data: claimableData, isLoading: claimableLoading, refetch: refetchClaimables } = useReadContracts({
-    contracts: claimableQueries,
-    query: { enabled: claimableQueries.length > 0 },
-  });
-
-  const claimableMap = useMemo(() => {
-    if (!claimableData) return {};
-    const map: Record<number, bigint> = {};
-    claimableData.forEach((entry, idx) => {
-      if (!entry || entry.status !== "success") return;
-      const holding = fractionalHoldings[idx];
-      if (holding) map[holding.id] = entry.result as bigint;
-    });
-    return map;
-  }, [claimableData, fractionalHoldings]);
-
-  const totalClaimable = useMemo(() => {
-    return Object.values(claimableMap).reduce((acc, amt) => acc + amt, 0n);
-  }, [claimableMap]);
-
+  // Fractional token metadata
   const [holdingApiMeta, setHoldingApiMeta] = useState<Record<number, { ftName?: string; ftSymbol?: string }>>({});
 
   const erc20MetaQueries = useMemo(() => {
@@ -400,12 +330,12 @@ export default function PortfolioPage() {
     return fractionalHoldings.flatMap((holding) => [
       {
         address: holding.ftAddress as `0x${string}`,
-        abi: ERC20_ABI,
+        abi: ERC20_ABI as any,
         functionName: "name",
       },
       {
         address: holding.ftAddress as `0x${string}`,
-        abi: ERC20_ABI,
+        abi: ERC20_ABI as any,
         functionName: "symbol",
       },
     ]);
@@ -460,6 +390,40 @@ export default function PortfolioPage() {
     fetchApiMeta();
   }, [fractionalHoldings]);
 
+  // Claimable dividends
+  const { writeContract, data: claimHash, error: claimError } = useWriteContract();
+  const { isLoading: claimConfirming, isSuccess: claimSuccess } = useWaitForTransactionReceipt({ hash: claimHash });
+
+  const claimableQueries = useMemo(() => {
+    if (!fractionalizerAddress || !address || fractionalHoldings.length === 0) return [];
+    return fractionalHoldings.map((holding) => ({
+      address: fractionalizerAddress,
+      abi: FractionalizerABI as any,
+      functionName: "claimableAmount",
+      args: [BigInt(holding.id), address],
+    }));
+  }, [fractionalizerAddress, address, fractionalHoldings]);
+
+  const { data: claimableData, isLoading: claimableLoading, refetch: refetchClaimables } = useReadContracts({
+    contracts: claimableQueries,
+    query: { enabled: claimableQueries.length > 0 },
+  });
+
+  const claimableMap = useMemo(() => {
+    if (!claimableData) return {};
+    const map: Record<number, bigint> = {};
+    claimableData.forEach((entry, idx) => {
+      if (!entry || entry.status !== "success") return;
+      const holding = fractionalHoldings[idx];
+      if (holding) map[holding.id] = entry.result as bigint;
+    });
+    return map;
+  }, [claimableData, fractionalHoldings]);
+
+  const totalClaimable = useMemo(() => {
+    return Object.values(claimableMap).reduce((acc, amt) => acc + amt, 0n);
+  }, [claimableMap]);
+
   const handleClaim = (poolId: number) => {
     writeContract({
       address: fractionalizerAddress!,
@@ -475,43 +439,22 @@ export default function PortfolioPage() {
     }
   }, [claimSuccess, refetchClaimables]);
 
-  // Card wrapper component with gradient border
-  const GradientCard = ({ children, className = "", gradient = "cyan" }: { children: React.ReactNode; className?: string; gradient?: "cyan" | "purple" | "mixed" }) => {
-    const gradientStyles = {
-      cyan: "from-cyan-500/50 via-cyan-400/30 to-cyan-500/50",
-      purple: "from-purple-500/50 via-pink-400/30 to-purple-500/50",
-      mixed: "from-cyan-500/50 via-purple-400/30 to-pink-500/50",
-    };
-
-    return (
-      <div className={`relative group ${className}`}>
-        {/* Gradient border glow */}
-        <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradientStyles[gradient]} rounded-xl blur-sm opacity-75 group-hover:opacity-100 transition-opacity`} />
-        {/* Card content */}
-        <div className="relative bg-gray-900/95 backdrop-blur-sm rounded-xl border border-gray-800/50">
-          {children}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-screen text-white relative">
       <div className="fixed inset-0 z-0" style={{ backgroundImage: 'url(/purplewave.gif)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(200px)', opacity: 0.3 }} />
       <div className="relative z-10">
-      <MarketplaceNav />
+        <MarketplaceNav />
 
-      <main className="max-w-7xl mx-auto px-6 py-12 space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Portfolio</h1>
-          <p className="text-gray-400">Your registered assets and fractional token balances.</p>
-        </div>
+        <main className="max-w-7xl mx-auto px-6 py-12 space-y-8">
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Portfolio</h1>
+            <p className="text-gray-400">Manage your assets, licenses, and fractional holdings.</p>
+          </div>
 
-        {!isConnected ? (
-          <GradientCard gradient="mixed" className="max-w-md mx-auto">
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-purple-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          {!isConnected ? (
+            <div className="max-w-md mx-auto bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800 rounded-xl p-8 text-center">
+              <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
@@ -519,197 +462,348 @@ export default function PortfolioPage() {
               <p className="text-gray-300 mb-6">Connect your wallet to view your portfolio.</p>
               <ConnectButton />
             </div>
-          </GradientCard>
-        ) : (
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* Registered Assets Card */}
-            <GradientCard gradient="cyan">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                      </svg>
-                    </div>
-                    <h2 className="text-xl font-semibold">Registered Assets</h2>
-                  </div>
-                  <Link href="/marketplace" className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors">
-                    View All
-                  </Link>
-                </div>
-
-                <div className="text-5xl font-bold mb-4 text-white">
-                  {registeredAssets.length}
-                </div>
-
-                {registeredAssets.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No assets registered by this wallet.</p>
-                ) : (
-                  <div className="space-y-3 max-h-48 overflow-auto">
-                    {registeredAssets.slice(0, 3).map((a, idx) => (
-                      <div key={idx} className="bg-gray-800/50 rounded-lg p-3 text-sm">
-                        <p className="text-gray-300 truncate">NFT: {a.nftContract.slice(0, 10)}...#{a.tokenId.toString()}</p>
-                        <p className="text-gray-500 text-xs">Royalty: {(Number(a.defaultRoyaltyBPS) / 100).toFixed(2)}%</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+          ) : (
+            <>
+              {/* Tab Navigation */}
+              <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-2 inline-flex gap-2">
+                <button
+                  onClick={() => setActiveTab("myAssets")}
+                  className={`px-6 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+                    activeTab === "myAssets"
+                      ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800/50"
+                  }`}
+                >
+                  My Assets
+                </button>
+                <button
+                  onClick={() => setActiveTab("licenses")}
+                  className={`px-6 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+                    activeTab === "licenses"
+                      ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800/50"
+                  }`}
+                >
+                  Licenses Owned
+                </button>
+                <button
+                  onClick={() => setActiveTab("fractional")}
+                  className={`px-6 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+                    activeTab === "fractional"
+                      ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800/50"
+                  }`}
+                >
+                  Fractional Tokens
+                </button>
               </div>
-            </GradientCard>
 
-            {/* Licenses Owned Card */}
-            <GradientCard gradient="purple">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
+              {/* My Assets Tab */}
+              {activeTab === "myAssets" && (
+                <div className="space-y-6">
+                  {/* Category Filter */}
+                  <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
+                    <div className="flex gap-3 flex-wrap">
+                      <button
+                        onClick={() => setAssetCategory("all")}
+                        className={`px-5 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+                          assetCategory === "all"
+                            ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                            : "bg-gray-800/70 text-gray-400 hover:text-white hover:bg-gray-800 border border-gray-700"
+                        }`}
+                      >
+                        All Assets
+                      </button>
+                      <button
+                        onClick={() => setAssetCategory("3d")}
+                        className={`px-5 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+                          assetCategory === "3d"
+                            ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                            : "bg-gray-800/70 text-gray-400 hover:text-white hover:bg-gray-800 border border-gray-700"
+                        }`}
+                      >
+                        3D Models
+                      </button>
+                      <button
+                        onClick={() => setAssetCategory("image")}
+                        className={`px-5 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+                          assetCategory === "image"
+                            ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                            : "bg-gray-800/70 text-gray-400 hover:text-white hover:bg-gray-800 border border-gray-700"
+                        }`}
+                      >
+                        Images
+                      </button>
+                      <button
+                        onClick={() => setAssetCategory("audio")}
+                        className={`px-5 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+                          assetCategory === "audio"
+                            ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30"
+                            : "bg-gray-800/70 text-gray-400 hover:text-white hover:bg-gray-800 border border-gray-700"
+                        }`}
+                      >
+                        Audio
+                      </button>
                     </div>
-                    <h2 className="text-xl font-semibold">Licenses Owned</h2>
                   </div>
-                </div>
 
-                {loadingLicenses || loadingLicenseIds ? (
-                  <div className="flex items-center gap-3 text-gray-400">
-                    <div className="w-5 h-5 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
-                    <span>Loading licenses...</span>
-                  </div>
-                ) : licenseError ? (
-                  <p className="text-red-400 text-sm">{licenseError}</p>
-                ) : ownedLicenses.length === 0 ? (
-                  <div>
-                    <p className="text-5xl font-bold mb-4">0</p>
-                    <p className="text-gray-500 text-sm">No licenses purchased.</p>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-5xl font-bold mb-4">{ownedLicenses.length}</p>
-                    <div className="space-y-3 max-h-48 overflow-auto">
-                      {ownedLicenses.slice(0, 3).map((l) => {
-                        const tokenIdStr = l.tokenId ? l.tokenId.toString() : "";
-                        const data =
-                          (l.assetId && assetMediaMap[Number(l.assetId)]) || (l.image ? { image: l.image } : null);
+                  {/* Assets Grid */}
+                  {categorizedAssets[assetCategory].length === 0 ? (
+                    <div className="text-center py-20">
+                      <div className="w-24 h-24 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full flex items-center justify-center mx-auto mb-6 border border-gray-700">
+                        <svg className="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-300 mb-2">No Assets Yet</h3>
+                      <p className="text-gray-500 mb-6">You haven't registered any {assetCategory === "all" ? "" : assetCategory} assets yet.</p>
+                      <Link
+                        href="/create"
+                        className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-semibold transition-all"
+                      >
+                        List Your First Asset
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {categorizedAssets[assetCategory].map((asset) => {
+                        const meta = assetMetadata[asset.assetId];
+                        const mimeType = meta?.properties?.mimeType || "";
+                        const imageUrl = meta?.image;
+
                         return (
-                          <div key={tokenIdStr} className="bg-gray-800/50 rounded-lg p-3">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="text-gray-300 text-sm font-medium">{l.name || `License #${tokenIdStr}`}</p>
-                                <p className="text-gray-500 text-xs">Token ID: {tokenIdStr}</p>
+                          <div
+                            key={asset.assetId}
+                            className="bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800 rounded-xl overflow-hidden hover:border-purple-500/30 transition-all"
+                          >
+                            {/* Asset Image/Preview */}
+                            {imageUrl && (
+                              <div className="aspect-video bg-gradient-to-br from-gray-950 to-gray-900 overflow-hidden relative">
+                                <AssetMedia
+                                  src={imageUrl}
+                                  alt={meta?.name || `Asset #${asset.assetId}`}
+                                  mimeType={mimeType}
+                                  filename={meta?.properties?.filename}
+                                  interactive={false}
+                                  className="w-full h-full object-cover"
+                                />
                               </div>
-                              <span className="text-xs px-2 py-1 rounded bg-purple-900/50 text-purple-300">
-                                {l.licenseType || "LICENSE"}
+                            )}
+
+                            {/* Asset Info */}
+                            <div className="p-5 space-y-3">
+                              <div>
+                                <h3 className="text-lg font-bold text-white mb-1">
+                                  {meta?.name || `Asset #${asset.assetId}`}
+                                </h3>
+                                {meta?.description && (
+                                  <p className="text-sm text-gray-400 line-clamp-2">{meta.description}</p>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="bg-gray-800/50 rounded-lg p-2">
+                                  <p className="text-gray-500">Asset ID</p>
+                                  <p className="text-white font-semibold">#{asset.assetId}</p>
+                                </div>
+                                <div className="bg-gray-800/50 rounded-lg p-2">
+                                  <p className="text-gray-500">Royalty</p>
+                                  <p className="text-white font-semibold">{(Number(asset.defaultRoyaltyBPS) / 100).toFixed(1)}%</p>
+                                </div>
+                              </div>
+
+                              <Link
+                                href={`/marketplace`}
+                                className="block w-full py-2 text-center bg-gray-800/50 hover:bg-purple-600/20 border border-gray-700 hover:border-purple-500/50 rounded-lg text-sm font-medium transition-all"
+                              >
+                                View in Marketplace
+                              </Link>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Licenses Owned Tab */}
+              {activeTab === "licenses" && (
+                <div className="space-y-6">
+                  {loadingLicenses || loadingLicenseIds ? (
+                    <div className="text-center py-20">
+                      <div className="inline-block w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mb-4"></div>
+                      <p className="text-gray-400 text-lg">Loading licenses...</p>
+                    </div>
+                  ) : licenseError ? (
+                    <div className="text-center py-20">
+                      <p className="text-red-400">{licenseError}</p>
+                    </div>
+                  ) : ownedLicenses.length === 0 ? (
+                    <div className="text-center py-20">
+                      <div className="w-24 h-24 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full flex items-center justify-center mx-auto mb-6 border border-gray-700">
+                        <svg className="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-300 mb-2">No Licenses Yet</h3>
+                      <p className="text-gray-500 mb-6">You haven't purchased any licenses yet.</p>
+                      <Link
+                        href="/marketplace"
+                        className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-semibold transition-all"
+                      >
+                        Browse Marketplace
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {ownedLicenses.map((license) => {
+                        const tokenIdStr = license.tokenId ? license.tokenId.toString() : "";
+
+                        return (
+                          <div
+                            key={tokenIdStr}
+                            className="bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800 rounded-xl overflow-hidden hover:border-purple-500/30 transition-all"
+                          >
+                            {/* License Image */}
+                            {license.image && (
+                              <div className="aspect-video bg-gradient-to-br from-gray-950 to-gray-900 overflow-hidden relative">
+                                <AssetMedia
+                                  src={license.image}
+                                  alt={license.name || `License #${tokenIdStr}`}
+                                  interactive={false}
+                                  className="w-full h-full object-cover"
+                                />
+                                {/* License Type Badge */}
+                                <div className="absolute top-3 right-3">
+                                  <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-500/90 text-white backdrop-blur-sm">
+                                    {license.licenseType || "LICENSE"}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* License Info */}
+                            <div className="p-5 space-y-3">
+                              <div>
+                                <h3 className="text-lg font-bold text-white mb-1">
+                                  {license.name || `License #${tokenIdStr}`}
+                                </h3>
+                                {license.description && (
+                                  <p className="text-sm text-gray-400 line-clamp-2">{license.description}</p>
+                                )}
+                              </div>
+
+                              <div className="bg-gray-800/50 rounded-lg p-3">
+                                <p className="text-xs text-gray-500 mb-1">Token ID</p>
+                                <p className="text-sm text-white font-mono">{tokenIdStr}</p>
+                              </div>
+
+                              {license.image && (
+                                <a
+                                  href={`/api/download-asset?url=${encodeURIComponent(license.image)}&filename=license-asset`}
+                                  download
+                                  className="block w-full py-2 text-center bg-gradient-to-r from-purple-600/20 to-pink-600/20 hover:from-purple-600 hover:to-pink-600 border border-purple-500/30 hover:border-purple-500 rounded-lg text-sm font-semibold transition-all"
+                                >
+                                  Download Asset
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Fractional Tokens Tab */}
+              {activeTab === "fractional" && (
+                <div className="space-y-6">
+                  {/* Total Claimable */}
+                  <div className="bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800 rounded-xl p-6">
+                    <p className="text-gray-400 text-sm mb-2">Total Claimable Royalty</p>
+                    <p className="text-3xl font-bold text-white">
+                      {claimableLoading
+                        ? "Loading..."
+                        : `${Number(formatUnits(totalClaimable, 18)).toLocaleString(undefined, { maximumFractionDigits: 6 })} IP`}
+                    </p>
+                  </div>
+
+                  {fractionalHoldings.length === 0 ? (
+                    <div className="text-center py-20">
+                      <div className="w-24 h-24 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full flex items-center justify-center mx-auto mb-6 border border-gray-700">
+                        <svg className="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-300 mb-2">No Fractional Tokens</h3>
+                      <p className="text-gray-500 mb-6">You don't hold any fractional tokens yet.</p>
+                      <Link
+                        href="/pools"
+                        className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-semibold transition-all"
+                      >
+                        Browse Primary Market
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {fractionalHoldings.map((p) => {
+                        const chainMeta = holdingMetaMap[p.id];
+                        const apiMeta = holdingApiMeta[p.id];
+                        const displayName = chainMeta?.name || apiMeta?.ftName || `Pool #${p.id}`;
+                        const displaySymbol = chainMeta?.symbol || apiMeta?.ftSymbol;
+                        const claimable = claimableMap[p.id] || 0n;
+
+                        return (
+                          <div key={p.id} className="bg-gray-800/50 rounded-lg p-4 space-y-3 hover:bg-gray-800/70 transition-colors">
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-white text-sm truncate">{displayName}</h3>
+                                {displaySymbol && <p className="text-xs text-gray-500 font-mono">{displaySymbol}</p>}
+                              </div>
+                              <span className={`text-xs px-2 py-1 rounded-lg flex-shrink-0 ${p.active ? "bg-green-500/90 text-white" : "bg-gray-700 text-gray-300"}`}>
+                                {p.active ? "Active" : "Closed"}
                               </span>
                             </div>
-                            {data?.image && (
-                              <div className="mt-2 flex gap-2">
-                                <a
-                                  href={`/api/download-asset?url=${encodeURIComponent(data.image)}&filename=asset`}
-                                  className="text-xs text-purple-400 hover:text-purple-300"
-                                >
-                                  Download asset
-                                </a>
+
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="bg-gray-900/50 rounded-lg p-2">
+                                <p className="text-gray-500 text-xs mb-1">Balance</p>
+                                <p className="font-semibold text-white">{Number(formatUnits(p.balance, 18)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
                               </div>
+                              <div className="bg-gray-900/50 rounded-lg p-2">
+                                <p className="text-gray-500 text-xs mb-1">Claimable</p>
+                                <p className="font-semibold text-green-400">
+                                  {claimableLoading ? "..." : `${Number(formatUnits(claimable, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 })} IP`}
+                                </p>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => handleClaim(p.id)}
+                              disabled={claimConfirming || claimable === 0n}
+                              className="w-full py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed rounded-lg font-semibold text-sm transition-all"
+                            >
+                              {claimConfirming ? "Claiming..." : "Claim Royalty"}
+                            </button>
+
+                            {claimSuccess && <p className="text-xs text-green-400 text-center">Claimed successfully!</p>}
+                            {claimError && getUserFriendlyError(claimError) && (
+                              <p className="text-xs text-red-400 text-center truncate">
+                                {getUserFriendlyError(claimError)}
+                              </p>
                             )}
                           </div>
                         );
                       })}
                     </div>
-                  </div>
-                )}
-              </div>
-            </GradientCard>
-
-            {/* Fractional Tokens Held - Full Width */}
-            <GradientCard gradient="mixed" className="lg:col-span-2">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                      </svg>
-                    </div>
-                    <h2 className="text-xl font-semibold">Fractional Tokens Held</h2>
-                  </div>
-                  <Link href="/secondary-market" className="text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors">
-                    View Details
-                  </Link>
+                  )}
                 </div>
-
-                {/* Total Claimable */}
-                <div className="mb-6">
-                  <p className="text-gray-400 text-sm mb-1">Total claimable royalty:</p>
-                  <p className="text-3xl font-bold text-white">
-                    {claimableLoading
-                      ? "Loading..."
-                      : `${Number(formatUnits(totalClaimable, 18)).toLocaleString(undefined, { maximumFractionDigits: 6 })} ETH`}
-                  </p>
-                </div>
-
-                {fractionalHoldings.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No fractional token balance.</p>
-                    <Link href="/pools" className="inline-block mt-4 text-cyan-400 hover:text-cyan-300 text-sm">
-                      Browse Primary Market →
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {fractionalHoldings.map((p) => {
-                      const chainMeta = holdingMetaMap[p.id];
-                      const apiMeta = holdingApiMeta[p.id];
-                      const displayName = chainMeta?.name || apiMeta?.ftName || `Pool #${p.id}`;
-                      const displaySymbol = chainMeta?.symbol || apiMeta?.ftSymbol;
-                      const claimable = claimableMap[p.id] || 0n;
-
-                      return (
-                        <div key={p.id} className="bg-gray-800/50 rounded-xl p-4 space-y-3 hover:bg-gray-800/70 transition-colors">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-semibold text-white">{displayName}</h3>
-                              {displaySymbol && <p className="text-xs text-gray-500">{displaySymbol}</p>}
-                            </div>
-                            <span className={`text-xs px-2 py-1 rounded-full ${p.active ? "bg-green-900/40 text-green-400" : "bg-gray-700 text-gray-400"}`}>
-                              {p.active ? "Active" : "Closed"}
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div className="bg-gray-900/50 rounded-lg p-2">
-                              <p className="text-gray-500 text-xs">Balance</p>
-                              <p className="font-medium">{Number(formatUnits(p.balance, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
-                            </div>
-                            <div className="bg-gray-900/50 rounded-lg p-2">
-                              <p className="text-gray-500 text-xs">Claimable</p>
-                              <p className="font-medium text-green-400">
-                                {claimableLoading ? "..." : `${Number(formatUnits(claimable, 18)).toLocaleString(undefined, { maximumFractionDigits: 6 })} ETH`}
-                              </p>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => handleClaim(p.id)}
-                            disabled={claimConfirming || claimable === 0n}
-                            className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition text-sm"
-                          >
-                            {claimConfirming ? "Claiming..." : "Claim"}
-                          </button>
-
-                          {claimSuccess && <p className="text-xs text-green-400 text-center">Claimed successfully!</p>}
-                          {claimError && <p className="text-xs text-red-400 text-center truncate">Error: {claimError.message}</p>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </GradientCard>
-          </div>
-        )}
-      </main>
+              )}
+            </>
+          )}
+        </main>
       </div>
     </div>
   );

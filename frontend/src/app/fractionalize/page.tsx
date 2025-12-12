@@ -8,6 +8,7 @@ import { parseUnits, parseEther } from "viem";
 import { getContractAddress } from "@/lib/contracts/addresses";
 import AssetRegistryABI from "@/lib/contracts/AssetRegistry.json";
 import FractionalizerABI from "@/lib/contracts/Fractionalizer.json";
+import { getUserFriendlyError } from "@/lib/walletErrors";
 
 const ERC721_APPROVE_ABI = [
   {
@@ -42,7 +43,7 @@ export default function FractionalizePage() {
   const [ftSymbol, setFtSymbol] = useState("FRAC");
   const [totalSupply, setTotalSupply] = useState("1000");
   const [amountForSale, setAmountForSale] = useState("500");
-  const [pricePerToken, setPricePerToken] = useState("0.001"); // in ETH
+  const [pricePerToken, setPricePerToken] = useState("0.001"); // in IP
 
   const [actionHash, setActionHash] = useState<string | undefined>();
   const [actionError, setActionError] = useState<string | undefined>();
@@ -231,7 +232,10 @@ export default function FractionalizePage() {
       }
       setStatus("done");
     } catch (err: any) {
-      setActionError(err?.message || "Transaction failed");
+      const errorMsg = getUserFriendlyError(err);
+      if (errorMsg) {
+        setActionError(errorMsg);
+      }
       setStatus("idle");
     }
   };
@@ -359,7 +363,7 @@ export default function FractionalizePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Price per Token (ETH)</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Price per Token (IP)</label>
               <input
                 type="text"
                 value={pricePerToken}

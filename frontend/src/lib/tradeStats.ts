@@ -10,7 +10,7 @@ type RecordTradeParams = {
 
 /**
  * Update TradeStatistics for a settled match.
- * Stores prices/volume in ETH string form for easy display.
+ * Stores prices/volume in IP string form for easy display.
  */
 export async function recordTradeStats(prisma: PrismaClient, params: RecordTradeParams) {
   const { ftAddress, poolId, matchedAmountWei, matchedPriceWei } = params;

@@ -28,12 +28,16 @@ export function MarketplaceNav() {
           <Link href="/" className="text-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent hover:opacity-80 transition">
             Lixa
           </Link>
-          <nav className="hidden md:flex gap-6 items-center">
+          <nav className="hidden md:flex gap-2 items-center">
             {links.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`text-sm transition ${isActive(link.href) ? "text-white font-medium" : "text-gray-300 hover:text-white"}`}
+                className={`text-sm px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                  isActive(link.href)
+                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold shadow-lg shadow-purple-500/30"
+                    : "text-gray-400 hover:text-white hover:bg-gray-800/50"
+                }`}
               >
                 {link.label}
               </Link>

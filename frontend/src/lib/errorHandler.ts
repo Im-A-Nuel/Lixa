@@ -25,7 +25,7 @@ export function parseError(error: any): { title: string; message: string; detail
   if (errorMessage.includes("insufficient funds") || errorMessage.includes("insufficient balance")) {
     return {
       title: "Insufficient Funds",
-      message: "You don't have enough ETH to complete this transaction.",
+      message: "You don't have enough IP to complete this transaction.",
     };
   }
 

@@ -139,7 +139,7 @@ export function OrderForm({
         {/* Price Input */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Price per Token (ETH)
+            Price per Token (IP)
           </label>
           <input
             type="number"
@@ -156,11 +156,11 @@ export function OrderForm({
         <div className="bg-gray-50 p-3 rounded-md">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-gray-600">Total Value:</span>
-            <span className="font-medium">{totalValue} ETH</span>
+            <span className="font-medium">{totalValue} IP</span>
           </div>
           <div className="flex justify-between text-sm text-gray-600">
             <span>Gas Fee (0.1%):</span>
-            <span>{gasFee.toFixed(6)} ETH</span>
+            <span>{gasFee.toFixed(6)} IP</span>
           </div>
         </div>
 

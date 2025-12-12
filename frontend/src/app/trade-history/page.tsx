@@ -110,58 +110,97 @@ export default function TradeHistoryPage() {
       <div className="relative z-10">
       <MarketplaceNav />
 
-      <main className="max-w-6xl mx-auto px-6 py-10 space-y-6">
+      <main className="max-w-7xl mx-auto px-6 py-12 space-y-8">
+        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <p className="text-sm text-purple-300 uppercase tracking-wide">Exchange History</p>
-            <h1 className="text-3xl font-bold">Trade History</h1>
-            <p className="text-gray-400">All buy/sell transactions that have been settled on-chain.</p>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent mb-2">
+              Trade History
+            </h1>
+            <p className="text-gray-400">All buy/sell transactions settled on-chain</p>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-3 items-center">
+            {isConnected && (
+              <div className="px-4 py-2 bg-gray-900/50 border border-gray-800 rounded-lg">
+                <p className="text-xs text-gray-400">Connected Wallet</p>
+                <p className="text-sm font-semibold text-purple-400">{shorten(address!)}</p>
+              </div>
+            )}
             <button
               onClick={fetchTrades}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 transition text-white"
+              className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40"
             >
+              <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
               Refresh
             </button>
           </div>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-gray-400">
-            <p>Showing transactions for this wallet (buy & sell)</p>
+        {/* Stats Card */}
+        {isConnected && (
+          <div className="bg-gradient-to-br from-gray-900/80 to-gray-900/50 border border-gray-800/50 rounded-xl p-6 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">Total Trades</p>
+                  <p className="text-2xl font-bold text-white">{filtered.length}</p>
+                </div>
+              </div>
+              {error && (
+                <div className="px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <p className="text-sm text-red-400">{error}</p>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="text-right text-sm text-gray-400">
-            <p>Total trade: {filtered.length}</p>
-            {isConnected && <p className="text-green-400">Wallet: {shorten(address!)}</p>}
-            {error && <p className="text-red-400">{error}</p>}
-          </div>
-        </div>
+        )}
 
         {!isConnected ? (
-          <div className="text-center py-12 bg-gray-900 border border-gray-800 rounded-lg">
-            <p className="text-lg font-semibold text-gray-200 mb-2">Connect wallet to view your history</p>
-            <p className="text-gray-500">Trade history only shows transactions for the connected wallet.</p>
-            <div className="mt-4 flex justify-center gap-3">
-              <Link href="/secondary-market" className="px-4 py-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700 transition">
-                Go to Secondary Market
-              </Link>
+          <div className="text-center py-20 bg-gradient-to-br from-gray-900/80 to-gray-900/50 border border-gray-800/50 rounded-xl backdrop-blur-sm">
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
             </div>
+            <h3 className="text-2xl font-bold text-white mb-2">Connect Your Wallet</h3>
+            <p className="text-gray-400 mb-6 max-w-md mx-auto">Connect your wallet to view your trade history and track all your transactions</p>
+            <Link
+              href="/secondary-market"
+              className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-white font-semibold transition-all shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40"
+            >
+              Go to Secondary Market
+            </Link>
           </div>
         ) : loading ? (
-          <div className="text-center text-gray-400 py-10">Loading history...</div>
+          <div className="text-center py-20">
+            <div className="inline-block w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-400">Loading trade history...</p>
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 bg-gray-900 border border-gray-800 rounded-lg">
-            <p className="text-lg font-semibold text-gray-200 mb-2">No trades yet</p>
-            <p className="text-gray-500">Try refreshing or make a settlement on the Secondary Market.</p>
-            <div className="mt-4 flex justify-center gap-3">
-              <Link href="/secondary-market" className="px-4 py-2 bg-purple-600 rounded-lg text-white hover:bg-purple-700 transition">
-                Go to Secondary Market
-              </Link>
+          <div className="text-center py-20 bg-gradient-to-br from-gray-900/80 to-gray-900/50 border border-gray-800/50 rounded-xl backdrop-blur-sm">
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
             </div>
+            <h3 className="text-2xl font-bold text-white mb-2">No Trades Yet</h3>
+            <p className="text-gray-400 mb-6 max-w-md mx-auto">Start trading on the secondary market to see your transaction history here</p>
+            <Link
+              href="/secondary-market"
+              className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-white font-semibold transition-all shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40"
+            >
+              Go to Secondary Market
+            </Link>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid lg:grid-cols-2 gap-6">
             {filtered.map((trade) => {
               const amount = safeFormatAmount(trade.matchedAmount);
               const price = safeFormatEth(trade.matchedPrice);
@@ -169,52 +208,71 @@ export default function TradeHistoryPage() {
               const settledAt = trade.settledAt || trade.createdAt;
               const side = trade.side || "TRADE";
               const sideColor =
-                side === "BUY" ? "bg-green-900/40 text-green-300" : side === "SELL" ? "bg-red-900/40 text-red-300" : "bg-gray-800 text-gray-200";
+                side === "BUY"
+                  ? "bg-gradient-to-r from-green-600/20 to-emerald-600/20 border-green-500/30 text-green-400"
+                  : side === "SELL"
+                  ? "bg-gradient-to-r from-red-600/20 to-pink-600/20 border-red-500/30 text-red-400"
+                  : "bg-gradient-to-r from-gray-700/20 to-gray-600/20 border-gray-500/30 text-gray-300";
               const meta = tokenMetaMap[trade.ftAddress.toLowerCase()];
               const displayName = meta?.ftName || trade.ftName || "Token";
               const displaySymbol = meta?.ftSymbol || trade.ftSymbol;
 
               return (
-                <div key={trade.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-xs text-gray-500">Pool #{trade.poolId}</p>
-                      <h3 className="text-lg font-semibold">
-                        {displayName}{" "}
-                        <span className="text-gray-500 text-sm">{displaySymbol ? `(${displaySymbol})` : ""}</span>
+                <div
+                  key={trade.id}
+                  className="bg-gradient-to-br from-gray-900/80 to-gray-900/50 border border-gray-800/50 rounded-xl p-6 space-y-4 backdrop-blur-sm hover:border-gray-700/50 transition-all"
+                >
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs text-gray-500 font-medium">Pool #{trade.poolId}</span>
+                        <span className={`px-3 py-1 rounded-lg text-xs font-semibold border ${sideColor}`}>
+                          {side}
+                        </span>
+                      </div>
+                      <h3 className="text-xl font-bold text-white">
+                        {displayName}
                       </h3>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${sideColor}`}>{side}</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="bg-gray-800 rounded p-3">
-                      <p className="text-xs text-gray-500">Amount</p>
-                      <p className="font-semibold">{amount} tokens</p>
-                    </div>
-                    <div className="bg-gray-800 rounded p-3">
-                      <p className="text-xs text-gray-500">Price</p>
-                      <p className="font-semibold">{price} ETH</p>
-                    </div>
-                    <div className="bg-gray-800 rounded p-3 col-span-2">
-                      <p className="text-xs text-gray-500">Total</p>
-                      <p className="font-semibold">{total} ETH</p>
+                      {displaySymbol && (
+                        <p className="text-sm text-gray-400">{displaySymbol}</p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="text-xs text-gray-400 space-y-1">
-                    <p>
-                      Seller: <span className="font-mono text-white">{shorten(trade.sellerAddress)}</span>
-                    </p>
-                    <p>
-                      Buyer: <span className="font-mono text-white">{shorten(trade.buyerAddress)}</span>
-                    </p>
-                    <p>
-                      Settled: <span className="text-gray-200">{new Date(settledAt).toLocaleString()}</span>
-                    </p>
-                    <p className="break-all">
-                      Token: <span className="font-mono text-gray-300">{trade.ftAddress}</span>
-                    </p>
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                      <p className="text-xs text-gray-400 mb-1">Amount</p>
+                      <p className="text-sm font-bold text-white">{amount}</p>
+                      <p className="text-xs text-gray-500">tokens</p>
+                    </div>
+                    <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                      <p className="text-xs text-gray-400 mb-1">Price</p>
+                      <p className="text-sm font-bold text-purple-400">{price}</p>
+                      <p className="text-xs text-gray-500">IP</p>
+                    </div>
+                    <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                      <p className="text-xs text-gray-400 mb-1">Total</p>
+                      <p className="text-sm font-bold text-pink-400">{total}</p>
+                      <p className="text-xs text-gray-500">IP</p>
+                    </div>
+                  </div>
+
+                  {/* Details */}
+                  <div className="pt-3 border-t border-gray-800/50 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Seller</span>
+                      <span className="font-mono text-gray-200">{shorten(trade.sellerAddress)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Buyer</span>
+                      <span className="font-mono text-gray-200">{shorten(trade.buyerAddress)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Settled</span>
+                      <span className="text-gray-300">{new Date(settledAt).toLocaleDateString()} {new Date(settledAt).toLocaleTimeString()}</span>
+                    </div>
                   </div>
                 </div>
               );

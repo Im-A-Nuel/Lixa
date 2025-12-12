@@ -82,7 +82,7 @@ export function useOrderExecution() {
   );
 
   /**
-   * Execute trade on-chain with pre-checks for ETH and token approval
+   * Execute trade on-chain with pre-checks for IP and token approval
    */
   const executeTrade = useCallback(
     async (matchId: string) => {
@@ -148,17 +148,17 @@ export function useOrderExecution() {
           expiresAt: BigInt(match.expiresAt).toString(),
         };
 
-        // Calculate ETH to send
+        // Calculate IP to send
         const totalValue = (BigInt(match.amount) * BigInt(match.pricePerToken)) / BigInt(1e18);
 
-        // Check 1: Verify buyer has enough ETH
+        // Check 1: Verify buyer has enough IP
         if (publicClient) {
           const buyerBalance = await publicClient.getBalance({
             address: match.buyerAddress as `0x${string}`,
           });
           if (buyerBalance < totalValue) {
             throw new Error(
-              `Buyer has insufficient ETH. Need ${formatEther(totalValue)} ETH but has only ${formatEther(buyerBalance)} ETH`
+              `Buyer has insufficient IP. Need ${formatEther(totalValue)} IP but has only ${formatEther(buyerBalance)} IP`
             );
           }
         }

@@ -6,7 +6,14 @@ import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { config } from "@/lib/wagmi";
 import "@rainbow-me/rainbowkit/styles.css";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Disable queries during SSR to avoid hydration issues
+      enabled: typeof window !== 'undefined',
+    },
+  },
+});
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (

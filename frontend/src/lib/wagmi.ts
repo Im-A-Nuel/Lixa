@@ -1,3 +1,4 @@
+import "./polyfills";
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { http } from "wagmi";
 import { type Chain } from "wagmi/chains";
@@ -36,4 +37,5 @@ export const config = getDefaultConfig({
     [storyTestnet.id]: http(process.env.NEXT_PUBLIC_STORY_RPC_URL || "https://aeneid.storyrpc.io"),
   },
   ssr: true,
+  storage: typeof window !== 'undefined' ? undefined : null,
 });

@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     config.externals.push("pino-pretty", "lokijs", "encoding");
     return config;
   },
-  serverExternalPackages: ["pino", "thread-stream"],
+  serverExternalPackages: ["pino", "thread-stream", "@prisma/client", "prisma"],
   async headers() {
     return [
       {
